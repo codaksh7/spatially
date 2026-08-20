@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../models/ble_observation.dart';
 import '../services/ble_scanner_service.dart';
@@ -13,7 +14,7 @@ class ScanScreen extends StatefulWidget {
   State<ScanScreen> createState() => _ScanScreenState();
 }
 
-class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
+class _ScanScreenState extends State<ScanScreen> {
   final BleScannerService _scanner = BleScannerService();
   final List<BleObservation> _observations = [];
   StreamSubscription<BleObservation>? _streamSub;
@@ -24,28 +25,38 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _initForegroundTask();
+  }
+
+  void _initForegroundTask() {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'spatially_ble_scan',
+        channelName: 'Spatially BLE Scanning',
+        channelDescription: 'Keeps BLE scanning active in the background.',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: false,
+        playSound: false,
+      ),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
+        autoRunOnBoot: false,
+        allowWakeLock: true,
+        allowWifiLock: true,
+      ),
+    );
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _streamSub?.cancel();
     _countSub?.cancel();
     _scanner.dispose();
+    FlutterForegroundTask.stopService();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      // Stop the scan cleanly when app goes to background
-      if (_isScanning) {
-        _toggleScan();
-      }
-    }
   }
 
   Future<void> _toggleScan() async {
@@ -62,6 +73,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         _streamSub = null;
         await _countSub?.cancel();
         _countSub = null;
+        await FlutterForegroundTask.stopService();
         setState(() {
           _isScanning = false;
         });
@@ -75,9 +87,19 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         }
 
         final statuses = await _scanner.requestPermissions();
+        final notificationStatus = await Permission.notification.request();
         final allGranted = statuses.values.every(
           (status) => status == PermissionStatus.granted,
         );
+
+        if (notificationStatus != PermissionStatus.granted) {
+          print('WARNING: Notification permission denied. Foreground service may not run.');
+        }
+
+        bool isIgnoring = await FlutterForegroundTask.isIgnoringBatteryOptimizations;
+        if (!isIgnoring) {
+          await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+        }
 
         if (!allGranted) {
           print('DEBUG: Permissions denied, not scanning.');
@@ -111,6 +133,10 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         });
 
         await _scanner.startScan();
+        await FlutterForegroundTask.startService(
+          notificationTitle: 'Spatially',
+          notificationText: 'Scanning active',
+        );
       }
     } finally {
       if (mounted) {

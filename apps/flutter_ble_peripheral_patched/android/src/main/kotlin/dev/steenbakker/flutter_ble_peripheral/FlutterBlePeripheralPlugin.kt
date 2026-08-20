@@ -47,6 +47,8 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     private val tag: String = "flutter_ble_peripheral"
 
     private var methodChannel: MethodChannel? = null
+    // Separate channel for the background advertising service commands
+    private var serviceMethodChannel: MethodChannel? = null
     private lateinit var stateChangedHandler: StateChangedHandler
 
     private var flutterBlePeripheralManager: FlutterBlePeripheralManager? = null
@@ -83,6 +85,45 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "dev.steenbakker.flutter_ble_peripheral/ble_state")
         methodChannel?.setMethodCallHandler(this)
+
+        // Channel for starting/stopping the native BleAdvertisingService from Dart
+        serviceMethodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "dev.steenbakker.flutter_ble_peripheral/ble_service")
+        serviceMethodChannel?.setMethodCallHandler { call, result ->
+            val ctx = flutterPluginBinding.applicationContext
+            when (call.method) {
+                "startBleAdvertisingService" -> {
+                    val serviceUuid       = call.argument<String>("serviceUuid") ?: ""
+                    val channelId         = call.argument<String>("channelId") ?: "spatially_ble_advertise"
+                    val channelName       = call.argument<String>("channelName") ?: "Spatially BLE Advertising"
+                    val notificationTitle = call.argument<String>("notificationTitle") ?: "Spatially"
+                    val notificationText  = call.argument<String>("notificationText") ?: "Advertising active"
+                    val intent = Intent(ctx, BleAdvertisingService::class.java).apply {
+                        action = BleAdvertisingService.ACTION_START_ADVERTISING
+                        putExtra(BleAdvertisingService.EXTRA_SERVICE_UUID, serviceUuid)
+                        putExtra(BleAdvertisingService.EXTRA_CHANNEL_ID, channelId)
+                        putExtra(BleAdvertisingService.EXTRA_CHANNEL_NAME, channelName)
+                        putExtra(BleAdvertisingService.EXTRA_NOTIFICATION_TITLE, notificationTitle)
+                        putExtra(BleAdvertisingService.EXTRA_NOTIFICATION_TEXT, notificationText)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        ctx.startForegroundService(intent)
+                    } else {
+                        ctx.startService(intent)
+                    }
+                    Log.i(tag, "startBleAdvertisingService: service start dispatched")
+                    result.success(null)
+                }
+                "stopBleAdvertisingService" -> {
+                    val intent = Intent(ctx, BleAdvertisingService::class.java).apply {
+                        action = BleAdvertisingService.ACTION_STOP_ADVERTISING
+                    }
+                    ctx.startService(intent)
+                    Log.i(tag, "stopBleAdvertisingService: service stop dispatched")
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         context = flutterPluginBinding.applicationContext
         stateChangedHandler = StateChangedHandler(flutterPluginBinding)
@@ -123,9 +164,10 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
 
         methodChannel?.setMethodCallHandler(null)
         methodChannel = null
+        serviceMethodChannel?.setMethodCallHandler(null)
+        serviceMethodChannel = null
         flutterBlePeripheralManager = null
         context = null
-
     }
 
     private fun checkBluetoothState(result: MethodChannel.Result): State {

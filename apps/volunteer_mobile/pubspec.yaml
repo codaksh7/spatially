@@ -40,6 +40,7 @@ dependencies:
 
   # Runtime permission requests (BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
   permission_handler: 13.0.1
+  flutter_foreground_task: ^11.0.1
 
 dev_dependencies:
   flutter_test:
