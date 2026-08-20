@@ -421,12 +421,21 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
 
     private fun stopPeripheral(result: MethodChannel.Result) {
         if (advertisingCallback != null) {
+            Log.i(tag, "STOP_DEBUG: Calling stopAdvertising() on legacy callback")
             flutterBlePeripheralManager?.stop(advertisingCallback!!)
+            advertisingCallback = null
         }
 
-        if (advertisingSetCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ) {
+        if (advertisingSetCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.i(tag, "STOP_DEBUG: Calling stopAdvertisingSet() — dispatching to Android BLE stack now")
+            // Belt-and-suspenders: first explicitly disable the active set if we have a reference,
+            // then call the generic stopSet. This ensures the hardware radio actually stops
+            // broadcasting on Android 14 where stopAdvertisingSet alone may not tear down immediately.
+            advertisingSetCallback?.activeAdvertisingSet?.enableAdvertising(false, 0, 0)
             flutterBlePeripheralManager?.stopSet(advertisingSetCallback!!)
+            advertisingSetCallback = null
         }
+
         Handler(Looper.getMainLooper()).post {
             result.success(Ready.ordinal)
         }

@@ -6,3 +6,9 @@ PROJECT_LOG.md
 apps/volunteer_mobile/lib/config/supabase_config.dart
 
 apps/attendee_mobile/lib/config/supabase_config.dart
+
+apps/volunteer_mobile/lib/config/supabase_config.dart
+
+apps/attendee_mobile/lib/config/supabase_config.dart
+
+apps/flutter_ble_peripheral_patched/android/.gradle/

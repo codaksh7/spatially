@@ -25,13 +25,22 @@ class PeripheralAdvertisingSetCallback(private val result: MethodChannel.Result,
 
     private var hasReplied = false
 
+    // Holds the active AdvertisingSet object once advertising starts.
+    // Used by the plugin to call enableAdvertising(false) directly on stop,
+    // which is more reliable than stopAdvertisingSet() on some Android 14 devices.
+    var activeAdvertisingSet: AdvertisingSet? = null
+
     override fun onAdvertisingSetStarted(
             advertisingSet: AdvertisingSet?,
             txPower: Int,
             status: Int
     ) {
-        Log.i("FlutterBlePeripheral", "onAdvertisingSetStarted() status: $advertisingSet, txPOWER $txPower, status $status")
+        Log.i("FlutterBlePeripheral", "onAdvertisingSetStarted() advertisingSet=$advertisingSet txPower=$txPower status=$status")
         super.onAdvertisingSetStarted(advertisingSet, txPower, status)
+        if (status == ADVERTISE_SUCCESS) {
+            activeAdvertisingSet = advertisingSet
+            Log.i("FlutterBlePeripheral", "STOP_DEBUG: activeAdvertisingSet captured: $advertisingSet")
+        }
         var statusText = ""
         when (status) {
             ADVERTISE_SUCCESS -> {
@@ -80,8 +89,9 @@ class PeripheralAdvertisingSetCallback(private val result: MethodChannel.Result,
      * @param advertisingSet The advertising set.
      */
     override fun onAdvertisingSetStopped(advertisingSet: AdvertisingSet?) {
-        Log.i("FlutterBlePeripheral", "onAdvertisingSetStopped() status: $advertisingSet")
+        Log.i("FlutterBlePeripheral", "STOP_DEBUG: onAdvertisingSetStopped() fired — OS confirmed advertising stopped. advertisingSet=$advertisingSet")
         super.onAdvertisingSetStopped(advertisingSet)
+        activeAdvertisingSet = null
         stateChangedHandler.publishPeripheralState(PeripheralState.idle)
     }
 

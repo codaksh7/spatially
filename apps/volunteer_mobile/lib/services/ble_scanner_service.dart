@@ -36,6 +36,7 @@ class BleScannerService {
   static const dedupWindow = Duration(seconds: 10);
   static const presenceTimeout = Duration(seconds: 45);
   Timer? _cleanupTimer;
+  Timer? _scanRestartTimer;
 
   int rawObservationsCount = 0;
 
@@ -97,6 +98,7 @@ class BleScannerService {
     // Cancel any leftover subscription/timer from a previous scan session.
     await _scanSubscription?.cancel();
     _cleanupTimer?.cancel();
+    _scanRestartTimer?.cancel();
 
     _cleanupTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       final now = DateTime.now();
@@ -199,12 +201,23 @@ class BleScannerService {
     );
 
     await FlutterBluePlus.startScan();
+
+    // Periodic native scan restart to mitigate Android OS-level BLE caching.
+    // This stops and restarts the hardware scan without clearing our app-level
+    // tracking maps/counters, forcing Android to flush its stale cache.
+    _scanRestartTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      print('DEBUG: Restarting scan session to clear stale Android BLE cache');
+      await FlutterBluePlus.stopScan();
+      await FlutterBluePlus.startScan();
+    });
   }
 
   /// Stops BLE scanning and cancels the scan-results subscription.
   Future<void> stopScan() async {
     _cleanupTimer?.cancel();
     _cleanupTimer = null;
+    _scanRestartTimer?.cancel();
+    _scanRestartTimer = null;
     await FlutterBluePlus.stopScan();
     await _scanSubscription?.cancel();
     _scanSubscription = null;
