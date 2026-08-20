@@ -1,0 +1,8 @@
+﻿.env
+.DS_Store
+*.log
+PROJECT_LOG.md
+
+apps/volunteer_mobile/lib/config/supabase_config.dart
+
+apps/attendee_mobile/lib/config/supabase_config.dart
