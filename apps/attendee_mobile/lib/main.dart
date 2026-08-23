@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'battery_check_screen.dart';
 
 // Native BleAdvertisingService channel — we talk to the Kotlin service directly
 // via a standard MethodChannel so Flutter doesn't need to own the BLE advertiser.
@@ -19,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      home: AdvertiserScreen(),
+      home: BatteryCheckScreen(),
     );
   }
 }
@@ -148,6 +150,28 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Spatially ',
+                    style: GoogleFonts.audiowide(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'for Attendee',
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 48),
             Text(
               isAdvertising ? 'Status: Advertising...' : 'Status: Idle',
               style: const TextStyle(fontSize: 18),

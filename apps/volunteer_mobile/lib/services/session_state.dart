@@ -14,9 +14,14 @@ class SessionState {
   /// One of: "Entrance", "Main Stage", "Food Court", "Exit".
   String? zone;
 
+  /// True if the battery check has already been performed for this session.
+  bool batteryChecked = false;
+
+
   /// Clears all session data. Call on sign-out.
   void clear() {
     volunteerId = null;
     zone = null;
+    batteryChecked = false;
   }
 }

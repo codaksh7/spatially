@@ -37,6 +37,8 @@ dependencies:
   flutter_ble_peripheral: 2.1.1
   permission_handler: 13.0.1
   flutter_foreground_task: ^11.0.1
+  google_fonts: 8.2.1
+  battery_plus: 7.1.1
 
 dev_dependencies:
   flutter_test:

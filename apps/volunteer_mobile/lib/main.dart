@@ -6,6 +6,7 @@ import 'services/session_state.dart';
 import 'screens/login_screen.dart';
 import 'screens/zone_selection_screen.dart';
 import 'screens/scan_screen.dart';
+import 'screens/battery_check_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +71,9 @@ class AuthGate extends StatelessWidget {
 
         // Zone not yet selected for this session → go to zone selection.
         if (SessionState.instance.zone == null) {
+          if (!SessionState.instance.batteryChecked) {
+            return const BatteryCheckScreen();
+          }
           return const ZoneSelectionScreen();
         }
 
