@@ -41,6 +41,14 @@ dependencies:
   # Runtime permission requests (BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
   permission_handler: 13.0.1
   flutter_foreground_task: ^11.0.1
+  supabase_flutter: 2.17.2
+
+dependency_overrides:
+  # pointycastle 4.0.0 (pulled in by supabase_flutter → dart_jsonwebtoken)
+  # triggers a Dart CFE internal RangeError crash when compiling oaep.dart
+  # on Dart SDK 3.12.2 / Windows. Override to last stable 3.x version as
+  # workaround until Dart SDK or pointycastle patches the issue.
+  pointycastle: 3.9.1
 
 dev_dependencies:
   flutter_test:

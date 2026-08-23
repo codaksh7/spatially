@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/ble_observation.dart';
 import '../services/ble_scanner_service.dart';
+import '../services/session_state.dart';
+import '../main.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -147,21 +150,49 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  // DEBUG ONLY - remove before production
-  void _addTestObservation() {
-    _scanner.injectObservation(
-      BleObservation(
-        ephemeralId: 'test-device-01',
-        rssi: -60,
-        scannedAt: DateTime.now(),
-      ),
-    );
+  Future<void> _signOut() async {
+    // Stop foreground service and active scan before signing out to avoid
+    // orphaned foreground services or stream subscriptions after logout.
+    if (_isScanning) {
+      await _scanner.stopScan();
+      await _streamSub?.cancel();
+      _streamSub = null;
+      await _countSub?.cancel();
+      _countSub = null;
+      await FlutterForegroundTask.stopService();
+    }
+    SessionState.instance.clear();
+    final supabaseInstance = Supabase.instance;
+    final client = supabaseInstance.client;
+    final auth = client.auth;
+    await auth.signOut();
+    
+    // Explicitly navigate back to AuthGate. The original AuthGate from 
+    // app startup was destroyed when ZoneSelectionScreen called pushReplacement,
+    // so we must rebuild the route stack from scratch.
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('BLE Scanner')),
+      appBar: AppBar(
+        title: const Text('BLE Scanner'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            onPressed: _signOut,
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -216,11 +247,7 @@ class _ScanScreenState extends State<ScanScreen> {
             child: Text(_isScanning ? 'Stop Scan' : 'Start Scan'),
           ),
 
-          // DEBUG ONLY - remove before production
-          ElevatedButton(
-            onPressed: _addTestObservation,
-            child: const Text('Add Test Observation (DEBUG ONLY)'),
-          ),
+
 
           // Results list
           Expanded(

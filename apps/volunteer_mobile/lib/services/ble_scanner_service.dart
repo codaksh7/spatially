@@ -4,6 +4,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../models/ble_observation.dart';
+import 'telemetry_service.dart';
+import 'session_state.dart';
 
 class BleScannerService {
   final StreamController<BleObservation> _controller =
@@ -37,6 +39,7 @@ class BleScannerService {
   static const presenceTimeout = Duration(seconds: 45);
   Timer? _cleanupTimer;
   Timer? _scanRestartTimer;
+  Timer? _telemetryTimer;
 
   int rawObservationsCount = 0;
 
@@ -99,6 +102,7 @@ class BleScannerService {
     await _scanSubscription?.cancel();
     _cleanupTimer?.cancel();
     _scanRestartTimer?.cancel();
+    _telemetryTimer?.cancel();
 
     _cleanupTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       final now = DateTime.now();
@@ -125,7 +129,7 @@ class BleScannerService {
     _scanSubscription = FlutterBluePlus.onScanResults.listen(
       (results) {
         bool stateChanged = false;
-
+        
         for (final result in results) {
           rawObservationsCount++;
 
@@ -142,7 +146,7 @@ class BleScannerService {
           // timestamp is older than presenceTimeout — it's a stale cache hit,
           // not a live detection.
           if (now.difference(seenTime) > presenceTimeout) {
-            continue; // DEBUG ONLY print removed — was flooding terminal at ~10-15 calls/sec
+            continue;
           }
 
           final DateTime? previousLastSeen = _lastSeen[ephemeralId];
@@ -152,8 +156,13 @@ class BleScannerService {
           // until the device expires. Android doesn't include service UUIDs in
           // every packet (they appear in scan response packets), so we must not
           // revert classification just because a later packet omitted the UUID.
-          final seenUuidThisPacket = result.advertisementData.serviceUuids
-              .any((guid) => guid.toString().toLowerCase() == spatiallyServiceUuid.toLowerCase());
+          final advertisementData = result.advertisementData;
+          final serviceUuids = advertisementData.serviceUuids;
+          final bool seenUuidThisPacket = serviceUuids
+              .any((guid) {
+                final String guidStr = guid.toString().toLowerCase();
+                return guidStr == spatiallyServiceUuid.toLowerCase();
+              });
           if (seenUuidThisPacket) {
             _confirmedSpatiallyIds.add(ephemeralId);
           }
@@ -185,12 +194,28 @@ class BleScannerService {
           if (previousLastSeen == null ||
               seenTime.difference(previousLastSeen) > dedupWindow) {
             print('DEBUG: Emitting observation for $ephemeralId at $seenTime (isSpatially: $isSpatiallyDevice, seenUuidThisPacket: $seenUuidThisPacket)');
-            _controller.add(BleObservation(
+            final obs = BleObservation(
               ephemeralId: ephemeralId,
               rssi: result.rssi,
               scannedAt: seenTime,
               isSpatiallyDevice: isSpatiallyDevice,
-            ));
+              volunteerId: SessionState.instance.volunteerId,
+              zone: SessionState.instance.zone,
+            );
+            _controller.add(obs);
+            
+            // Fire-and-forget network write, deferred via microtask so that
+            // even the synchronous preamble of sendObservation() (client lookup,
+            // JSON encoding, HTTP request construction) does not run inline
+            // inside this BLE scan callback — it is scheduled after the current
+            // event-loop turn completes, keeping the scan loop lean.
+            // Note: scheduleMicrotask is used instead of Future.microtask to 
+            // completely bypass the Dart CFE generic type-inference crash 
+            // (InferenceVisitorImpl.visitIfStatement) on Windows.
+            scheduleMicrotask(() {
+              final telemetry = TelemetryService();
+              telemetry.sendObservation(obs);
+            });
           }
         }
 
@@ -210,6 +235,15 @@ class BleScannerService {
       await FlutterBluePlus.stopScan();
       await FlutterBluePlus.startScan();
     });
+
+    // Periodic telemetry: upsert active Spatially device count for the dashboard
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (Timer timer) {
+      final int currentCount = activeSpatiallyDevicesCount;
+      scheduleMicrotask(() {
+        final telemetryService = TelemetryService();
+        telemetryService.updateVolunteerCount(currentCount);
+      });
+    });
   }
 
   /// Stops BLE scanning and cancels the scan-results subscription.
@@ -218,17 +252,14 @@ class BleScannerService {
     _cleanupTimer = null;
     _scanRestartTimer?.cancel();
     _scanRestartTimer = null;
+    _telemetryTimer?.cancel();
+    _telemetryTimer = null;
     await FlutterBluePlus.stopScan();
     await _scanSubscription?.cancel();
     _scanSubscription = null;
   }
 
-  // DEBUG ONLY - remove before production
-  /// Pushes a fake observation directly into the stream.
-  /// Used for emulator testing where no real BLE hardware is available.
-  void injectObservation(BleObservation obs) {
-    _controller.add(obs);
-  }
+
 
   /// Call this when the service is no longer needed to release resources.
   Future<void> dispose() async {
