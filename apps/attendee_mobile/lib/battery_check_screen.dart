@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'main.dart'; // To access AdvertiserScreen
+import 'screens/event_list_screen.dart';
 
 class BatteryCheckScreen extends StatefulWidget {
   const BatteryCheckScreen({super.key});
@@ -43,7 +43,7 @@ class _BatteryCheckScreenState extends State<BatteryCheckScreen> {
   void _proceed() {
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AdvertiserScreen()),
+        MaterialPageRoute(builder: (_) => const EventListScreen()),
       );
     }
   }
