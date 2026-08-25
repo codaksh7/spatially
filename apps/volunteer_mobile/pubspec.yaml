@@ -46,6 +46,8 @@ dependencies:
   battery_plus: 7.1.1
   app_settings: 9.0.0
   mobile_scanner: 7.4.0
+  sqflite: 2.4.3
+  connectivity_plus: 7.3.1
 
 dependency_overrides:
   # pointycastle 4.0.0 (pulled in by supabase_flutter → dart_jsonwebtoken)

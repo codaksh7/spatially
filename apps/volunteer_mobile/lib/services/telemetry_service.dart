@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/ble_observation.dart';
 import '../config/supabase_config.dart';
 import 'session_state.dart';
+import 'observation_queue.dart';
 
 class TelemetryService {
   static final TelemetryService _instance = TelemetryService._internal();
@@ -23,31 +24,23 @@ class TelemetryService {
     } catch (e) {
       print('TelemetryService ERROR: Failed to initialize Supabase: $e');
     }
+
+    // Initialise the offline queue AFTER Supabase is up so that the startup
+    // flush can attempt cloud writes immediately if there is connectivity.
+    await ObservationQueue().init();
   }
 
-  /// Sends a single observation to the Supabase database.
-  /// This is a fire-and-forget call for the online-first path.
+  /// Sends a single observation to Supabase, falling back to the local
+  /// SQLite queue if the network write fails.
   Future<void> sendObservation(BleObservation observation) async {
     if (!_initialized) {
       print('TelemetryService ERROR: Cannot send observation, Supabase not initialized.');
       return;
     }
 
-    try {
-      // Intermediate variables to avoid a Dart CFE type-inference crash
-      // (STATUS_ACCESS_VIOLATION) triggered by the fluent chain:
-      //   Supabase.instance.client.from('table').insert(arg)
-      // The CFE crashes when resolving: ThisExpression → PropertyGet → IndexGet
-      // → MethodInvocation(argument) in a single chained expression inside async.
-      final supabaseInstance = Supabase.instance;
-      final client = supabaseInstance.client;
-      final table = client.from('observations');
-      final row = observation.toMap();
-      await table.insert(row);
-      print('TelemetryService: Successfully sent observation for ${observation.ephemeralId}');
-    } catch (e) {
-      print('TelemetryService ERROR: Failed to send observation: $e');
-    }
+    // Delegate to ObservationQueue which owns the online-first → local-queue
+    // fallback logic.
+    await ObservationQueue().sendOrQueue(observation);
   }
 
   /// Upserts the live count of active Spatially devices for the current volunteer.
@@ -63,6 +56,8 @@ class TelemetryService {
     }
 
     try {
+      // Intermediate variables to avoid a Dart CFE type-inference crash
+      // (STATUS_ACCESS_VIOLATION) triggered by the fluent chain.
       final supabaseInstance = Supabase.instance;
       final client = supabaseInstance.client;
       final table = client.from('volunteer_counts');
