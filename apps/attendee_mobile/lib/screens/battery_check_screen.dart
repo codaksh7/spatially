@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'screens/event_list_screen.dart';
+import 'event_list_screen.dart';
 
 class BatteryCheckScreen extends StatefulWidget {
   const BatteryCheckScreen({super.key});

@@ -4,9 +4,9 @@ import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:app_settings/app_settings.dart';
-import 'battery_check_screen.dart';
-import 'attendee_identity.dart';
-import 'ephemeral_id.dart';
+import 'screens/battery_check_screen.dart';
+import 'services/attendee_identity.dart';
+import 'services/ephemeral_id.dart';
 
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';

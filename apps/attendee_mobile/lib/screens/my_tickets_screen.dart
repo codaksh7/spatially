@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../attendee_identity.dart';
+import '../services/attendee_identity.dart';
 import 'ticket_detail_screen.dart';
 
 class MyTicketsScreen extends StatefulWidget {
