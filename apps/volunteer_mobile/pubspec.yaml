@@ -49,12 +49,6 @@ dependencies:
   sqflite: 2.4.3
   connectivity_plus: 7.3.1
 
-dependency_overrides:
-  # pointycastle 4.0.0 (pulled in by supabase_flutter → dart_jsonwebtoken)
-  # triggers a Dart CFE internal RangeError crash when compiling oaep.dart
-  # on Dart SDK 3.12.2 / Windows. Override to last stable 3.x version as
-  # workaround until Dart SDK or pointycastle patches the issue.
-  pointycastle: 3.9.1
 
 dev_dependencies:
   flutter_test:

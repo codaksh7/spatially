@@ -102,4 +102,3 @@ flutter:
 dependency_overrides:
   flutter_ble_peripheral:
     path: ../flutter_ble_peripheral_patched
-  pointycastle: 3.9.1
