@@ -45,6 +45,8 @@ class BleAdvertisingService : Service() {
         const val EXTRA_CHANNEL_NAME       = "CHANNEL_NAME"
         const val EXTRA_NOTIFICATION_TITLE = "NOTIFICATION_TITLE"
         const val EXTRA_NOTIFICATION_TEXT  = "NOTIFICATION_TEXT"
+        const val EXTRA_EPHEMERAL_ID       = "EPHEMERAL_ID"  // hex string, 12 chars = 6 bytes
+        private const val MANUFACTURER_ID  = 0xFFFF          // 'unassigned / test use'
         private const val NOTIFICATION_ID  = 9471  // arbitrary unique ID
     }
 
@@ -74,6 +76,7 @@ class BleAdvertisingService : Service() {
                 val channelName       = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: "Spatially BLE Advertising"
                 val notificationTitle = intent.getStringExtra(EXTRA_NOTIFICATION_TITLE) ?: "Spatially"
                 val notificationText  = intent.getStringExtra(EXTRA_NOTIFICATION_TEXT) ?: "Advertising active"
+                val ephemeralIdHex    = intent.getStringExtra(EXTRA_EPHEMERAL_ID)
 
                 // Promote to foreground FIRST — must happen within 10s of service start (Android 14)
                 val notification = buildNotification(channelId, channelName, notificationTitle, notificationText)
@@ -85,7 +88,7 @@ class BleAdvertisingService : Service() {
                 }
                 Log.i(TAG, "BleAdvertisingService: promoted to foreground (connectedDevice type)")
 
-                startAdvertising(serviceUuid)
+                startAdvertising(serviceUuid, ephemeralIdHex)
             }
             ACTION_STOP_ADVERTISING -> {
                 stopAdvertising()
@@ -126,7 +129,7 @@ class BleAdvertisingService : Service() {
             .build()
     }
 
-    private fun startAdvertising(serviceUuid: String) {
+    private fun startAdvertising(serviceUuid: String, ephemeralIdHex: String?) {
         if (isAdvertising) {
             Log.w(TAG, "BleAdvertisingService: already advertising, ignoring start request")
             return
@@ -155,10 +158,29 @@ class BleAdvertisingService : Service() {
             .setTimeout(0)  // 0 = advertise indefinitely
             .build()
 
-        val data = AdvertiseData.Builder()
+        val dataBuilder = AdvertiseData.Builder()
             .setIncludeDeviceName(false)
             .addServiceUuid(ParcelUuid(UUID.fromString(serviceUuid)))
-            .build()
+
+        Log.d(TAG, "BleAdvertisingService: received ephemeralIdHex = $ephemeralIdHex")
+        // Embed the ephemeral ID as manufacturer-specific data (company 0xFFFF = unassigned/test).
+        // Budget: 31 bytes total. Flags(3) + ServiceUUID(18) + ManufData(4 overhead + 6 payload) = 31.
+        if (!ephemeralIdHex.isNullOrEmpty()) {
+            try {
+                // Convert 12-char hex string to 6-byte array
+                val ephemeralBytes = ByteArray(ephemeralIdHex.length / 2) { i ->
+                    ephemeralIdHex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+                }
+                dataBuilder.addManufacturerData(MANUFACTURER_ID, ephemeralBytes)
+                Log.d(TAG, "BleAdvertisingService: embedding ephemeral ID = $ephemeralIdHex (parsed ${ephemeralBytes.size} bytes)")
+            } catch (e: Exception) {
+                Log.e(TAG, "BleAdvertisingService: failed to parse ephemeral ID hex, advertising without it: ${e.message}")
+            }
+        } else {
+            Log.w(TAG, "BleAdvertisingService: ephemeralIdHex is null or empty, advertising without it")
+        }
+
+        val data = dataBuilder.build()
 
         Log.i(TAG, "BleAdvertisingService: calling startAdvertising() for UUID=$serviceUuid")
         mBluetoothLeAdvertiser?.startAdvertising(settings, data, advertiseCallback)

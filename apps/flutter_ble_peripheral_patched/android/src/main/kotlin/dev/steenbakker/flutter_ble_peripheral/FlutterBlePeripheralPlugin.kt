@@ -97,6 +97,7 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                     val channelName       = call.argument<String>("channelName") ?: "Spatially BLE Advertising"
                     val notificationTitle = call.argument<String>("notificationTitle") ?: "Spatially"
                     val notificationText  = call.argument<String>("notificationText") ?: "Advertising active"
+                    val ephemeralId       = call.argument<String>("ephemeralId")
                     val intent = Intent(ctx, BleAdvertisingService::class.java).apply {
                         action = BleAdvertisingService.ACTION_START_ADVERTISING
                         putExtra(BleAdvertisingService.EXTRA_SERVICE_UUID, serviceUuid)
@@ -104,6 +105,9 @@ class FlutterBlePeripheralPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                         putExtra(BleAdvertisingService.EXTRA_CHANNEL_NAME, channelName)
                         putExtra(BleAdvertisingService.EXTRA_NOTIFICATION_TITLE, notificationTitle)
                         putExtra(BleAdvertisingService.EXTRA_NOTIFICATION_TEXT, notificationText)
+                        if (ephemeralId != null) {
+                            putExtra(BleAdvertisingService.EXTRA_EPHEMERAL_ID, ephemeralId)
+                        }
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         ctx.startForegroundService(intent)

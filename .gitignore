@@ -12,3 +12,5 @@ apps/volunteer_mobile/lib/config/supabase_config.dart
 apps/attendee_mobile/lib/config/supabase_config.dart
 
 apps/flutter_ble_peripheral_patched/android/.gradle/
+
+hs_err_pid*.log

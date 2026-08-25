@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:app_settings/app_settings.dart';
 import 'battery_check_screen.dart';
 import 'attendee_identity.dart';
+import 'ephemeral_id.dart';
 
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -52,6 +53,7 @@ class AdvertiserScreen extends StatefulWidget {
 class _AdvertiserScreenState extends State<AdvertiserScreen> {
   final FlutterBlePeripheral blePeripheral = FlutterBlePeripheral();
   StreamSubscription<PeripheralState>? _btStateSub;
+  Timer? _rotationTimer;
   bool isAdvertising = false;
   bool _isBluetoothOn = true; // assume on until we get a state update
   bool _showBluetoothBlock = false; // true if the user tried to start advertising with BT off
@@ -89,6 +91,7 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
   @override
   void dispose() {
     _btStateSub?.cancel();
+    _rotationTimer?.cancel();
     super.dispose();
   }
 
@@ -110,6 +113,12 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
   /// Start the native BleAdvertisingService — this takes over from the Flutter-owned
   /// advertiser so the BLE broadcasting survives screen lock.
   Future<void> _startNativeAdvertisingService() async {
+    final deviceId = AttendeeIdentity.deviceId ?? '';
+    final Uint8List ephemeralBytes = EphemeralId.compute(deviceId);
+    final ephemeralHex = ephemeralBytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+
     try {
       await _bleServiceChannel.invokeMethod('startBleAdvertisingService', {
         'serviceUuid': _spatiallyServiceUuid,
@@ -117,15 +126,33 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
         'channelName': 'Spatially BLE Advertising',
         'notificationTitle': 'Spatially',
         'notificationText': 'Advertising active',
+        'ephemeralId': ephemeralHex,
       });
-      print('DEBUG: Native BleAdvertisingService started');
+      print('DEBUG: Native BleAdvertisingService started with ephemeralId=$ephemeralHex');
     } catch (e) {
       print('ERROR starting native BleAdvertisingService: $e');
     }
+
+    // Schedule a restart at the next 5-minute window boundary so the
+    // ephemeral ID rotates. This timer re-fires every 5 minutes after that.
+    // Cancels any previously running rotation timer first.
+    _rotationTimer?.cancel();
+    final secondsToNext = EphemeralId.secondsUntilNextWindow();
+    _rotationTimer = Timer(Duration(seconds: secondsToNext), () async {
+      if (!mounted || !isAdvertising) return;
+      // Restart with the fresh ephemeral ID for the new window.
+      await _stopNativeAdvertisingService();
+      await _startNativeAdvertisingService();
+      // After the first boundary, keep rotating every 5 minutes.
+      // _startNativeAdvertisingService() itself re-schedules the next rotation.
+    });
+    print('DEBUG: Ephemeral ID rotation scheduled in ${secondsToNext}s');
   }
 
   /// Stop the native BleAdvertisingService.
   Future<void> _stopNativeAdvertisingService() async {
+    _rotationTimer?.cancel();
+    _rotationTimer = null;
     try {
       await _bleServiceChannel.invokeMethod('stopBleAdvertisingService');
       print('DEBUG: Native BleAdvertisingService stopped');
