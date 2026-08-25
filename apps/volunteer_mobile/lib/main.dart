@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/telemetry_service.dart';
 import 'services/session_state.dart';
 import 'screens/login_screen.dart';
+import 'screens/event_picker_screen.dart';
 import 'screens/zone_selection_screen.dart';
 import 'screens/scan_screen.dart';
 import 'screens/battery_check_screen.dart';
@@ -20,9 +21,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // Named routes used by ZoneSelectionScreen to push to ScanScreen.
+      // Named routes used by ZoneSelectionScreen to push to ScanScreen,
+      // and by EventPickerScreen to push to ZoneSelectionScreen.
       routes: {
         '/scan': (context) => const ScanScreen(),
+        '/zone_selection': (context) => const ZoneSelectionScreen(),
       },
       home: const AuthGate(),
     );
@@ -69,11 +72,18 @@ class AuthGate extends StatelessWidget {
         // This is safe to set on every event; it's idempotent.
         SessionState.instance.volunteerId = session.user.id;
 
+        // Battery check first.
+        if (!SessionState.instance.batteryChecked) {
+          return const BatteryCheckScreen();
+        }
+
+        // Event not yet selected → show event picker.
+        if (SessionState.instance.eventId == null) {
+          return const EventPickerScreen();
+        }
+
         // Zone not yet selected for this session → go to zone selection.
         if (SessionState.instance.zone == null) {
-          if (!SessionState.instance.batteryChecked) {
-            return const BatteryCheckScreen();
-          }
           return const ZoneSelectionScreen();
         }
 

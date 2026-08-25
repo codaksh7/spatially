@@ -44,6 +44,8 @@ dependencies:
   supabase_flutter: 2.17.2
   google_fonts: 8.2.1
   battery_plus: 7.1.1
+  app_settings: 9.0.0
+  mobile_scanner: 7.4.0
 
 dependency_overrides:
   # pointycastle 4.0.0 (pulled in by supabase_flutter → dart_jsonwebtoken)

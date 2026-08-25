@@ -200,6 +200,7 @@ class BleScannerService {
               scannedAt: seenTime,
               isSpatiallyDevice: isSpatiallyDevice,
               volunteerId: SessionState.instance.volunteerId,
+              eventId: SessionState.instance.eventId,
               zone: SessionState.instance.zone,
             );
             _controller.add(obs);
@@ -236,14 +237,26 @@ class BleScannerService {
       await FlutterBluePlus.startScan();
     });
 
-    // Periodic telemetry: upsert active Spatially device count for the dashboard
-    _telemetryTimer = Timer.periodic(const Duration(seconds: 20), (Timer timer) {
+    _startTelemetryTimer();
+  }
+
+  void _startTelemetryTimer() {
+    _telemetryTimer?.cancel();
+    final int interval = SessionState.instance.syncRateSeconds;
+    _telemetryTimer = Timer.periodic(Duration(seconds: interval), (Timer timer) {
       final int currentCount = activeSpatiallyDevicesCount;
       scheduleMicrotask(() {
         final telemetryService = TelemetryService();
         telemetryService.updateVolunteerCount(currentCount);
       });
     });
+  }
+
+  /// Restarts the telemetry timer with the new interval if scanning is currently active.
+  void updateTelemetryInterval() {
+    if (_scanSubscription != null) {
+      _startTelemetryTimer();
+    }
   }
 
   /// Stops BLE scanning and cancels the scan-results subscription.

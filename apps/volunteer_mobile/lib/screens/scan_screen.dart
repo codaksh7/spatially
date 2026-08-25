@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:app_settings/app_settings.dart';
 
 import '../models/ble_observation.dart';
 import '../services/ble_scanner_service.dart';
 import '../services/session_state.dart';
 import '../main.dart';
+import 'qr_scanner_screen.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -24,11 +27,21 @@ class _ScanScreenState extends State<ScanScreen> {
   StreamSubscription<void>? _countSub;
   bool _isScanning = false;
   bool _isProcessing = false;
+  bool _showBluetoothBlock = false;
+  StreamSubscription<BluetoothAdapterState>? _btStateSub;
 
   @override
   void initState() {
     super.initState();
     _initForegroundTask();
+    _btStateSub = FlutterBluePlus.adapterState.listen((state) {
+      if (state == BluetoothAdapterState.on && _showBluetoothBlock) {
+        setState(() {
+          _showBluetoothBlock = false;
+        });
+        _toggleScan(); // auto-proceed
+      }
+    });
   }
 
   void _initForegroundTask() {
@@ -55,6 +68,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   void dispose() {
+    _btStateSub?.cancel();
     _streamSub?.cancel();
     _countSub?.cancel();
     _scanner.dispose();
@@ -83,9 +97,9 @@ class _ScanScreenState extends State<ScanScreen> {
       } else {
         final isBluetoothOn = await _scanner.isBluetoothOn();
         if (!isBluetoothOn && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please turn on Bluetooth to scan.')),
-          );
+          setState(() {
+            _showBluetoothBlock = true;
+          });
           return;
         }
 
@@ -178,14 +192,78 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-
+  Future<void> _openScanner() async {
+    final status = await Permission.camera.request();
+    if (status == PermissionStatus.granted) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Camera permission is required to scan tickets.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_showBluetoothBlock) {
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Bluetooth Required'),
+            automaticallyImplyLeading: false, // Remove back button
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Icon(Icons.bluetooth_disabled, size: 80, color: Colors.redAccent),
+                const SizedBox(height: 24),
+                const Text(
+                  'Bluetooth is off',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Spatially requires Bluetooth to scan for attendee beacons. Please turn it on to continue.',
+                  style: TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                ElevatedButton(
+                  onPressed: () => AppSettings.openAppSettings(type: AppSettingsType.bluetooth),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Open Bluetooth Settings', style: TextStyle(fontSize: 18)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('BLE Scanner'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scan Ticket',
+            onPressed: _openScanner,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
@@ -196,11 +274,37 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Scan state indicator
+          // Scan state indicator and Sync Rate
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(
-              _isScanning ? 'Status: Scanning...' : 'Status: Idle',
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _isScanning ? 'Status: Scanning...' : 'Status: Idle',
+                ),
+                Row(
+                  children: [
+                    const Text('Sync Rate: '),
+                    DropdownButton<int>(
+                      value: SessionState.instance.syncRateSeconds,
+                      items: const [
+                        DropdownMenuItem(value: 10, child: Text('10s')),
+                        DropdownMenuItem(value: 30, child: Text('30s')),
+                        DropdownMenuItem(value: 60, child: Text('60s')),
+                      ],
+                      onChanged: (int? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            SessionState.instance.syncRateSeconds = newValue;
+                          });
+                          _scanner.updateTelemetryInterval();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 

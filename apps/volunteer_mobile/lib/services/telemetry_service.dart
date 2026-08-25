@@ -68,12 +68,14 @@ class TelemetryService {
       final table = client.from('volunteer_counts');
       final Map<String, dynamic> row = {
         'volunteer_id': volunteerId,
+        'event_id': SessionState.instance.eventId,
         'zone': zone,
         'active_count': activeCount,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
       // Upsert on primary key (volunteer_id)
       await table.upsert(row);
+
     } catch (e) {
       print('TelemetryService ERROR: Failed to update volunteer count: $e');
     }

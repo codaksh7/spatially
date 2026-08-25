@@ -4,6 +4,7 @@ class BleObservation {
   final DateTime scannedAt;
   final bool isSpatiallyDevice;
   final String? volunteerId;
+  final String? eventId;
   final String? zone;
 
   BleObservation({
@@ -12,6 +13,7 @@ class BleObservation {
     required this.scannedAt,
     this.isSpatiallyDevice = false,
     this.volunteerId,
+    this.eventId,
     this.zone,
   });
 
@@ -22,6 +24,7 @@ class BleObservation {
       'scanned_at': scannedAt.toIso8601String(),
       'is_spatially_device': isSpatiallyDevice,
       'volunteer_id': volunteerId,
+      'event_id': eventId,
       'zone': zone,
     };
   }
