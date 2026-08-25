@@ -135,7 +135,22 @@ class BleScannerService {
 
           if (result.rssi == -128) continue;
 
-          final String ephemeralId = result.device.remoteId.str;
+          String ephemeralId = result.device.remoteId.str;
+          final Map<int, List<int>> mfgData = result.advertisementData.manufacturerData;
+          
+          if (mfgData.containsKey(0xFFFF)) {
+            final List<int> payload = mfgData[0xFFFF]!;
+            if (payload.length == 6) {
+              ephemeralId = payload.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+            } else {
+              print('DEBUG: Manufacturer data for 0xFFFF has unexpected length (${payload.length}), falling back to MAC: $ephemeralId');
+            }
+          } else {
+             // Only log fallback for spatially devices so we don't spam for every random device
+             if (result.advertisementData.serviceUuids.any((g) => g.toString().toLowerCase() == spatiallyServiceUuid.toLowerCase())) {
+                 print('DEBUG: Spatially device missing 0xFFFF manufacturer data, falling back to MAC: $ephemeralId');
+             }
+          }
           final DateTime seenTime = result.timeStamp;
           final DateTime now = DateTime.now();
 
