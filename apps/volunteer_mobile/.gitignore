@@ -47,4 +47,5 @@ app.*.map.json
 
 .env
 
-PROJECT_LOG.md
+ATTENDEE_LOG.md
+VOLUNTEER_LOG.md

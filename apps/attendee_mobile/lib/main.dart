@@ -259,7 +259,29 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendee BLE Advertiser')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Spatially ',
+                style: GoogleFonts.audiowide(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextSpan(
+                text: 'for Attendee',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

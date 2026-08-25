@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'event_list_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class BatteryCheckScreen extends StatefulWidget {
   const BatteryCheckScreen({super.key});
@@ -57,7 +58,28 @@ class _BatteryCheckScreenState extends State<BatteryCheckScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Battery Warning')),
+      appBar: AppBar(
+        title: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Spatially ',
+                style: GoogleFonts.audiowide(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextSpan(
+                text: 'for Attendee',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../services/attendee_identity.dart';
 import 'my_tickets_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -94,7 +95,26 @@ class _EventListScreenState extends State<EventListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Event'),
+        title: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Spatially ',
+                style: GoogleFonts.audiowide(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextSpan(
+                text: 'for Attendee',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.confirmation_number),

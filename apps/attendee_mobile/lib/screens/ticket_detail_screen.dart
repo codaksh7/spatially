@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../main.dart'; // for AdvertiserScreen
+import 'package:google_fonts/google_fonts.dart';
 
 class TicketDetailScreen extends StatelessWidget {
   final Map<String, dynamic> ticket;
@@ -28,7 +29,28 @@ class TicketDetailScreen extends StatelessWidget {
     final isPurchased = status == 'purchased';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ticket Details')),
+      appBar: AppBar(
+        title: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Spatially ',
+                style: GoogleFonts.audiowide(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextSpan(
+                text: 'for Attendee',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
