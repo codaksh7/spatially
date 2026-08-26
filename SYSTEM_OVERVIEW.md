@@ -364,3 +364,17 @@ There is also a practical check-in flow. When an attendee walks up to the entran
 One important thing to flag for anyone taking this further: right now, the database has Row Level Security turned off. That means anyone who has the Supabase anon key can read and write anything. This is fine for a closed prototype where you control who has the APK, but the very first thing to fix before a real deployment is locking down the database properly — making sure attendees can only write their own tickets, volunteers can only write observations for their assigned events, and the organizer dashboard reads data with appropriate access controls. That is the single most critical piece of unfinished work from a security standpoint.
 
 Everything else is genuinely working end-to-end: BLE detection, offline queuing when there is no network, ticket check-in, rotating privacy IDs, multi-event support, zone-level tracking, and live counts. The foundation is solid — it just needs that security layer and the organizer-facing web interface to become a real product.
+
+---
+
+## 14. Diagrams
+
+### Architecture Diagram
+
+![Spatially Architecture Diagram](architecture_diagram.jpg)
+
+---
+
+### End-to-End Workflow Diagram
+
+![Spatially Workflow Diagram](workflow_diagram.jpg)
