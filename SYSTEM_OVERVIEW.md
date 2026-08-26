@@ -342,3 +342,25 @@ Aryan — Mobile apps (attendee_mobile + volunteer_mobile), BLE architecture, Su
 Blaise — Organizer web dashboard (upcoming)
 Daksh — Organizer web dashboard (upcoming)
 Devansh — Organizer web dashboard (upcoming)
+
+---
+
+## 13. How It All Works — In Plain Words
+
+So let me just walk you through the whole thing like I am explaining it to someone who has not seen the code.
+
+Imagine you are going to a live concert or a college fest. You download the Spatially attendee app, and it asks you to pick your event and get a ticket. That ticket is basically just a unique code stored in our database, tied to your phone. You did not have to create an account or log in with anything — the app just silently generates a permanent ID for your specific device behind the scenes and uses that to remember you. When you tap your event and get a ticket, a QR code appears on your screen. That QR code is what gets you through the entrance gate.
+
+Now, the more interesting part. When you physically arrive at the venue and tap "Reached at Event" inside the app, your phone starts broadcasting a Bluetooth signal in the background. You do not feel anything, you do not see anything happening — it just quietly runs. Here is the clever part though: it is not broadcasting your name, your phone number, or any fixed identifier. Instead, it broadcasts a short 6-byte code that we call the ephemeral ID. This code is generated using a SHA-256 hash of your device ID combined with the current 5-minute time window. So every 5 minutes, the code your phone is sending out completely changes. Someone sitting nearby with a Bluetooth sniffer cannot track you across an event because the ID they saw 6 minutes ago has already changed and is completely unrelated to your current one. That is the privacy protection built right into the system.
+
+On the other side, you have the volunteers — the people managing the event. They are using the volunteer app. They log in with their email and password, pick their assigned event, and then pick their zone — say, Main Stage or Food Court. When they hit Start Scan, their phone starts quietly listening for all Bluetooth devices around them. The app filters out all the random Bluetooth noise — other peoples earphones, speakers, whatever — and specifically looks for the Spatially service UUID, which is a custom identifier that only our attendee app broadcasts. When it finds a match, it reads the manufacturer data embedded in the Bluetooth packet, pulls out that 6-byte ephemeral ID, and logs it.
+
+Here is what "logging it" actually means: the app takes that detection, packages it with the volunteer ID, their zone, the event ID, the signal strength, and the exact time, and sends it to Supabase. Supabase is our backend — it is essentially a hosted PostgreSQL database with a REST API on top. Every single detection event becomes a row in the observations table. If a volunteer is standing in the Food Court zone and 40 people walk past in 10 minutes, there will be 40 rows (one per unique device per 10-second dedup window) in the database, all tagged with "Food Court".
+
+Separately, every 30 seconds, the volunteer app also sends a live count — like "right now I can see 12 Spatially devices in my zone" — to a different table called volunteer_counts. This is the table the organizer dashboard will read to show a real-time heatmap. The observations table is historical and will be used for analytics — which zones were most crowded at which times, when did people arrive, when did they leave.
+
+There is also a practical check-in flow. When an attendee walks up to the entrance, a volunteer opens the QR scanner within the volunteer app, scans the attendee ticket QR, and if the ticket is valid and matches the current event, it marks it as checked in right there in the database. The volunteer can see instantly whether the ticket is genuine, already used, or for a different event.
+
+One important thing to flag for anyone taking this further: right now, the database has Row Level Security turned off. That means anyone who has the Supabase anon key can read and write anything. This is fine for a closed prototype where you control who has the APK, but the very first thing to fix before a real deployment is locking down the database properly — making sure attendees can only write their own tickets, volunteers can only write observations for their assigned events, and the organizer dashboard reads data with appropriate access controls. That is the single most critical piece of unfinished work from a security standpoint.
+
+Everything else is genuinely working end-to-end: BLE detection, offline queuing when there is no network, ticket check-in, rotating privacy IDs, multi-event support, zone-level tracking, and live counts. The foundation is solid — it just needs that security layer and the organizer-facing web interface to become a real product.
