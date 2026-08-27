@@ -8,15 +8,25 @@ export default function EventCountdown({ eventDate, startTime, onComplete }) {
   useEffect(() => {
     if (!eventDate) return;
 
-    // Construct the target date
-    let targetDateStr = eventDate;
+    // Ensure we only take the YYYY-MM-DD part if eventDate contains time
+    let datePart = eventDate.includes("T") ? eventDate.split("T")[0] : eventDate;
+    
+    let targetDateStr = datePart;
     if (startTime) {
-      targetDateStr += `T${startTime}`;
+      // Ensure startTime has seconds for better cross-browser parsing (e.g. Safari)
+      const timePart = startTime.split(":").length === 2 ? `${startTime}:00` : startTime;
+      targetDateStr += `T${timePart}`;
     } else {
       targetDateStr += `T00:00:00`;
     }
     
-    const target = new Date(targetDateStr).getTime();
+    // Fallback parsing to replace dashes with slashes for older iOS versions
+    const safeDateStr = targetDateStr.replace(/-/g, "/").replace("T", " ");
+    let target = new Date(targetDateStr).getTime();
+    
+    if (isNaN(target)) {
+       target = new Date(safeDateStr).getTime();
+    }
 
     const updateTimer = () => {
       const now = new Date().getTime();
