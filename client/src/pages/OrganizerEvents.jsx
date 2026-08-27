@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { api } from "../utils/api";
 import { formatDate, formatTime, getStatusColor } from "../utils/validators";
 import { LuPlus, LuMapPin, LuClock, LuUsers, LuTicket, LuTrash2, LuCalendarDays } from "react-icons/lu";
+import EventCountdown from "../components/EventCountdown";
 
 export default function OrganizerEvents() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -28,7 +30,8 @@ export default function OrganizerEvents() {
     }
   };
 
-  const handleDelete = async (eventId, eventName) => {
+  const handleDelete = async (eventId, eventName, e) => {
+    if (e) e.stopPropagation();
     if (!window.confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone.`)) return;
     try {
       await api.delete(`/api/events/${eventId}`);
@@ -73,7 +76,7 @@ export default function OrganizerEvents() {
       {filtered.length > 0 ? (
         <div className="events-grid">
           {filtered.map((event) => (
-            <div key={event.id} className="event-card">
+            <div key={event.id} className="event-card" onClick={() => navigate(`/organizer/events/${event.id}`)}>
               <div className="event-card-header">
                 <div className="event-card-title">{event.name}</div>
                 <span className={`badge ${getStatusColor(event.status)}`}>{event.status}</span>
@@ -95,16 +98,20 @@ export default function OrganizerEvents() {
                   {event.zones.map((z) => <span key={z} className="zone-tag">{z}</span>)}
                 </div>
               )}
-              <div className="event-card-footer">
-                <div style={{ display: "flex", gap: "6px" }}>
+              <div className="event-card-footer" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                   {event.status === "upcoming" && (
-                    <button className="btn btn-sm btn-primary" onClick={() => handleStatusChange(event.id, "live")}>Go Live</button>
+                    <EventCountdown 
+                      eventDate={event.event_date} 
+                      startTime={event.start_time} 
+                      onComplete={() => handleStatusChange(event.id, "live")} 
+                    />
                   )}
                   {event.status === "live" && (
                     <button className="btn btn-sm btn-secondary" onClick={() => handleStatusChange(event.id, "ended")}>End Event</button>
                   )}
                 </div>
-                <button className="btn btn-sm btn-ghost" onClick={() => handleDelete(event.id, event.name)} style={{ color: "var(--error)" }}>
+                <button className="btn btn-sm btn-ghost" onClick={(e) => handleDelete(event.id, event.name, e)} style={{ color: "var(--error)" }}>
                   <LuTrash2 size={14} />
                 </button>
               </div>

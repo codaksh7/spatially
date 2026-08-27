@@ -820,6 +820,34 @@ p { color: var(--text-secondary); }
   border-top: 1px solid var(--border-default);
 }
 
+/* ===== COUNTDOWN ===== */
+.countdown-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  color: var(--green-400);
+}
+.countdown-container.live {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.countdown-icon {
+  font-size: 1.1rem;
+}
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* ===== CREATE EVENT FORM ===== */
 .create-event-form { max-width: 720px; }
 .form-row {

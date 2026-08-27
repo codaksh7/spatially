@@ -20,6 +20,7 @@ import VolunteerInvitations from "./pages/VolunteerInvitations";
 
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import OrganizerEvents from "./pages/OrganizerEvents";
+import EventDetail from "./pages/EventDetail";
 import CreateEvent from "./pages/CreateEvent";
 import InviteVolunteer from "./pages/InviteVolunteer";
 
@@ -101,6 +102,7 @@ export default function App() {
             >
               <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
               <Route path="/organizer/events" element={<OrganizerEvents />} />
+              <Route path="/organizer/events/:id" element={<EventDetail />} />
               <Route path="/organizer/create-event" element={<CreateEvent />} />
               <Route path="/organizer/volunteers" element={<InviteVolunteer />} />
             </Route>
