@@ -1,17 +1,24 @@
 .env
+server/.env
+client/.env
+start_project.bat
+*.bat
 .DS_Store
 *.log
 ATTENDEE_LOG.md
 VOLUNTEER_LOG.md
 
 apps/volunteer_mobile/lib/config/supabase_config.dart
-
 apps/attendee_mobile/lib/config/supabase_config.dart
-
-apps/volunteer_mobile/lib/config/supabase_config.dart
-
-apps/attendee_mobile/lib/config/supabase_config.dart
-
 apps/flutter_ble_peripheral_patched/android/.gradle/
 
 hs_err_pid*.log
+
+# Backend
+server/venv/
+server/__pycache__/
+*.pyc
+
+# Frontend
+client/node_modules/
+client/dist/
