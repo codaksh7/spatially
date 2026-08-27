@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { api } from "../utils/api";
 import { LuCircleCheck, LuCircleX, LuLoader } from "react-icons/lu";
@@ -8,6 +8,7 @@ export default function VerifyEmail() {
   const token = searchParams.get("token");
   const [status, setStatus] = useState("verifying");
   const [message, setMessage] = useState("");
+  const hasAttempted = useRef(false);
 
   useEffect(() => {
     if (!token) {
@@ -15,6 +16,9 @@ export default function VerifyEmail() {
       setMessage("No verification token provided");
       return;
     }
+
+    if (hasAttempted.current) return;
+    hasAttempted.current = true;
 
     api
       .get(`/api/auth/verify?token=${token}`, { skipRefresh: true })
