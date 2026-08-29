@@ -1,12 +1,16 @@
 .env
-server/.env
-client/.env
+.env.local
+.env.*.local
 start_project.bat
 *.bat
 .DS_Store
 *.log
+*.sqlite3
+*.db
 ATTENDEE_LOG.md
 VOLUNTEER_LOG.md
+.vscode/
+.idea/
 
 apps/volunteer_mobile/lib/config/supabase_config.dart
 apps/attendee_mobile/lib/config/supabase_config.dart
@@ -22,3 +26,5 @@ server/__pycache__/
 # Frontend
 client/node_modules/
 client/dist/
+client/build/
+client/.eslintcache

@@ -10,25 +10,31 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     token = credentials.credentials
+    supabase = get_supabase()
+    
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except JWTError:
+        response = supabase.auth.get_user(token)
+        user = response.user
+    except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
 
-    if payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="Invalid token type")
+    if not user:
+        raise HTTPException(status_code=401, detail="Account not found in Supabase Auth")
 
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Malformed token payload")
-
-    supabase = get_supabase()
-    result = supabase.table("web_users").select("*").eq("user_id", user_id).execute()
+    # Check if they exist in web_users (migrated users or web signups)
+    result = supabase.table("web_users").select("*").eq("id", user.id).execute()
 
     if not result.data:
-        raise HTTPException(status_code=401, detail="Account not found")
+        # User exists in Supabase Auth but not web_users (e.g., signed up via mobile app)
+        metadata = user.user_metadata or {}
+        return {
+            "id": user.id,
+            "user_id": metadata.get("user_id", "MOBILE_USER"),
+            "email": user.email,
+            "user_type": metadata.get("user_type", "volunteer"),
+            "full_name": metadata.get("full_name", ""),
+            "nickname": metadata.get("nickname", ""),
+        }
 
     return result.data[0]
 

@@ -4,6 +4,7 @@ import { useToast } from "../components/Toast";
 import { api } from "../utils/api";
 import { getMinDate } from "../utils/validators";
 import { LuPlus, LuX, LuLoader } from "react-icons/lu";
+import VenueMap from "../components/VenueMap";
 
 export default function CreateEvent() {
   const toast = useToast();
@@ -23,6 +24,9 @@ export default function CreateEvent() {
     zones: [],
   });
   const [errors, setErrors] = useState({});
+
+  const [showModal, setShowModal] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -122,10 +126,19 @@ export default function CreateEvent() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleInitialSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
+    
+    if (form.zones.length > 0) {
+      setShowModal(true);
+    } else {
+      // If no zones, just create normally
+      createEvent(null);
+    }
+  };
 
+  const createEvent = async (customLayout = null) => {
     setSubmitting(true);
     try {
       const payload = {
@@ -133,15 +146,60 @@ export default function CreateEvent() {
         capacity: form.capacity ? parseInt(form.capacity, 10) : 0,
         event_date: form.event_date + "T00:00:00Z",
       };
-      await api.post("/api/events/", payload);
+      
+      const res = await api.post("/api/events/", payload);
+      const newEventId = res.event.id;
+
+      // If they chose a custom layout, save it now before redirecting
+      if (customLayout) {
+        await api.post(`/api/venue-map/${newEventId}/layout`, { layout: customLayout });
+      }
+
       toast("Event created successfully!", "success");
-      navigate("/organizer/events");
+      navigate(`/organizer/events/${newEventId}`);
     } catch (err) {
       toast(err.message || "Failed to create event", "error");
     } finally {
       setSubmitting(false);
+      setShowModal(false);
+      setShowMap(false);
     }
   };
+
+  const handleAutoSetup = () => {
+    setShowModal(false);
+    createEvent(null); // Passing null will just use the default equal division
+  };
+
+  const handleManualSetup = () => {
+    setShowModal(false);
+    setShowMap(true);
+  };
+
+  if (showMap) {
+    return (
+      <div className="fade-in" style={{ maxWidth: "900px", margin: "0 auto" }}>
+        <div className="page-header">
+          <h1>Finalize Zone Layout</h1>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginBottom: "20px" }}>
+          You have chosen to manually size your zones. Once you click "Save & Create Event", this layout will be permanently locked for this event.
+        </p>
+        
+        <div className="card">
+          <VenueMap
+             eventId={null}
+             zones={form.zones}
+             mode="create-event"
+             onExitEditMode={(layout) => {
+               if (layout) createEvent(layout);
+               else setShowMap(false); // If they somehow cancel, though we removed cancel button
+             }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fade-in" style={{ maxWidth: "900px", margin: "0 auto" }}>
@@ -149,7 +207,7 @@ export default function CreateEvent() {
         <h1>Create New Event</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="create-event-form" noValidate>
+      <form onSubmit={handleInitialSubmit} className="create-event-form" noValidate>
         <div className="card" style={{ marginBottom: "20px" }}>
           <h3 className="card-title" style={{ marginBottom: "20px" }}>Event Details</h3>
 
@@ -253,6 +311,31 @@ export default function CreateEvent() {
           </button>
         </div>
       </form>
+
+      {/* Setup Zones Modal */}
+      {showModal && (
+        <div className="modal-overlay fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="modal" style={{ background: "var(--bg-elevated)", padding: "24px", borderRadius: "12px", maxWidth: "500px", width: "100%", border: "1px solid var(--border-light)" }}>
+            <h2 style={{ marginBottom: "16px", color: "var(--text-primary)" }}>Setup Venue Zones</h2>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "24px", lineHeight: "1.5" }}>
+              You have added zones to this event. How would you like them mapped out in the stadium? 
+              <br /><br />
+              <strong>Note: Once created, zone layouts cannot be altered later.</strong>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <button className="btn btn-primary btn-lg" onClick={handleAutoSetup}>
+                Automatic (Divide Equally)
+              </button>
+              <button className="btn btn-secondary btn-lg" onClick={handleManualSetup}>
+                Manually Edit Zones
+              </button>
+            </div>
+            <button className="btn btn-ghost" style={{ marginTop: "16px", width: "100%" }} onClick={() => setShowModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { validateEmail, validatePassword } from "../utils/validators";
 import { LuEye, LuEyeOff, LuLoader } from "react-icons/lu";
+
+const REDIRECT_MAP = {
+  user: "/user/dashboard",
+  volunteer: "/volunteer/dashboard",
+  organizer: "/organizer/dashboard",
+};
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -11,9 +17,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const { login, user } = useAuth();
   const toast = useToast();
+
+  // If already authenticated, redirect to dashboard
+  if (user && user.user_type) {
+    return <Navigate to={REDIRECT_MAP[user.user_type] || "/"} replace />;
+  }
 
   const validate = () => {
     const newErrors = {};
@@ -30,15 +40,10 @@ export default function Login() {
 
     setSubmitting(true);
     try {
-      const user = await login(email, password);
+      await login(email, password);
       toast("Login successful. Welcome back!", "success");
-
-      const redirectMap = {
-        user: "/user/dashboard",
-        volunteer: "/volunteer/dashboard",
-        organizer: "/organizer/dashboard",
-      };
-      navigate(redirectMap[user.user_type] || "/");
+      // Navigation happens automatically via the redirect above
+      // once onAuthStateChange fires and sets user state
     } catch (err) {
       toast(err.message || "Login failed", "error");
       setErrors({ form: err.message });

@@ -17,10 +17,13 @@ import UserMyEvents from "./pages/UserMyEvents";
 import VolunteerDashboard from "./pages/VolunteerDashboard";
 import VolunteerAssignments from "./pages/VolunteerAssignments";
 import VolunteerInvitations from "./pages/VolunteerInvitations";
+import VolunteerEventMap from "./pages/VolunteerEventMap";
+import VolunteerSwitchRequests from "./pages/VolunteerSwitchRequests";
 
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import OrganizerEvents from "./pages/OrganizerEvents";
 import EventDetail from "./pages/EventDetail";
+import EventLogs from "./pages/EventLogs";
 import CreateEvent from "./pages/CreateEvent";
 import InviteVolunteer from "./pages/InviteVolunteer";
 
@@ -90,6 +93,8 @@ export default function App() {
               <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
               <Route path="/volunteer/assignments" element={<VolunteerAssignments />} />
               <Route path="/volunteer/invitations" element={<VolunteerInvitations />} />
+              <Route path="/volunteer/event-map/:eventId" element={<VolunteerEventMap />} />
+              <Route path="/volunteer/switch-requests" element={<VolunteerSwitchRequests />} />
             </Route>
 
             {/* Organizer dashboard routes */}
@@ -102,9 +107,10 @@ export default function App() {
             >
               <Route path="/organizer/dashboard" element={<OrganizerDashboard />} />
               <Route path="/organizer/events" element={<OrganizerEvents />} />
-              <Route path="/organizer/events/:id" element={<EventDetail />} />
               <Route path="/organizer/create-event" element={<CreateEvent />} />
-              <Route path="/organizer/volunteers" element={<InviteVolunteer />} />
+              <Route path="/organizer/events/:id" element={<EventDetail />} />
+              <Route path="/organizer/event-logs/:eventId" element={<EventLogs />} />
+              <Route path="/organizer/invite" element={<InviteVolunteer />} />
             </Route>
 
             {/* Shared authenticated routes */}

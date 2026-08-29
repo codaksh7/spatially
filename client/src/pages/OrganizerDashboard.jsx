@@ -146,7 +146,7 @@ export default function OrganizerDashboard() {
         {data?.events?.length > 0 ? (
           <div className="events-grid">
             {data.events.slice(0, 6).map((event) => (
-              <div key={event.id} className="event-card">
+              <Link key={event.id} to={`/organizer/events/${event.id}`} className="event-card" style={{ textDecoration: "none", color: "inherit" }}>
                 <div className="event-card-header">
                   <div className="event-card-title">{event.name}</div>
                   <span className={`badge ${getStatusColor(event.status)}`}>{event.status}</span>
@@ -172,7 +172,7 @@ export default function OrganizerDashboard() {
                     Capacity: {event.capacity || "Unlimited"}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (

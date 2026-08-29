@@ -3,8 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { api } from "../utils/api";
 import { formatDate, formatTime, getStatusColor } from "../utils/validators";
-import { LuArrowLeft, LuMapPin, LuClock, LuUsers, LuTicket, LuCircleCheck, LuActivity, LuPencil, LuCalendarDays } from "react-icons/lu";
+import { LuArrowLeft, LuMapPin, LuClock, LuUsers, LuTicket, LuCircleCheck, LuActivity, LuPencil, LuCalendarDays, LuRadar } from "react-icons/lu";
 import EventCountdown from "../components/EventCountdown";
+import VenueMap from "../components/VenueMap";
+import VolunteerPlacer from "../components/VolunteerPlacer";
+import EventLogsPanel from "../components/EventLogsPanel";
 
 export default function EventDetail() {
   const { id } = useParams();
@@ -13,6 +16,8 @@ export default function EventDetail() {
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedVolunteer, setSelectedVolunteer] = useState(null);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
 
   useEffect(() => {
     api.get(`/api/events/${id}`)
@@ -29,6 +34,26 @@ export default function EventDetail() {
       await api.put(`/api/events/${id}`, { status: newStatus });
       setEvent((prev) => ({ ...prev, status: newStatus }));
       toast(`Event marked as ${newStatus}`, "success");
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+
+  const handleAssignPosition = async (zone, posX, posY, draggedVolunteerId = null) => {
+    const volToPlace = draggedVolunteerId || selectedVolunteer;
+    if (!volToPlace) return;
+    try {
+      await api.post(`/api/venue-map/${id}/assign-position`, {
+        volunteer_user_id: volToPlace,
+        zone,
+        pos_x: posX,
+        pos_y: posY,
+      });
+      toast(`${volToPlace} placed in zone ${zone}`, "success");
+      if (selectedVolunteer === volToPlace) {
+        setSelectedVolunteer(null);
+      }
+      setMapRefreshKey((k) => k + 1);
     } catch (err) {
       toast(err.message, "error");
     }
@@ -194,6 +219,41 @@ export default function EventDetail() {
         </div>
 
       </div>
+
+      {/* VENUE MAP SECTION */}
+      {event.zones?.length > 0 && (
+        <div className="card" style={{ marginBottom: "28px" }}>
+          <div className="section-header">
+            <h3 className="section-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <LuRadar size={18} color="var(--green-400)" /> Venue Map & Crowd Intelligence
+            </h3>
+          </div>
+          <div className="venue-map-organizer-layout">
+            <div className="venue-map-organizer-map">
+              <VenueMap
+                eventId={id}
+                zones={event.zones}
+                mode="organizer"
+                onZoneClick={handleAssignPosition}
+                selectedVolunteer={selectedVolunteer}
+                refreshTrigger={mapRefreshKey}
+              />
+            </div>
+            <div className="venue-map-organizer-panel">
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <VolunteerPlacer
+                  eventId={id}
+                  onSelectVolunteer={setSelectedVolunteer}
+                  selectedVolunteer={selectedVolunteer}
+                  refreshTrigger={mapRefreshKey}
+                  onRefresh={() => setMapRefreshKey((k) => k + 1)}
+                />
+                <EventLogsPanel eventId={id} refreshTrigger={mapRefreshKey} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -74,6 +74,14 @@ async def invite_bulk_volunteers(
         except Exception as e:
             results["failed"].append({"id": vid, "reason": str(e)})
 
+    if results["success"]:
+        supabase.table("event_activity_logs").insert({
+            "event_id": data.event_id,
+            "action_type": "invite",
+            "description": f"Invited {len(results['success'])} volunteers",
+            "actor_id": current_user["user_id"]
+        }).execute()
+
     return {
         "message": f"Successfully assigned {len(results['success'])} volunteers. {len(results['failed'])} failed.",
         "results": results
@@ -149,6 +157,13 @@ async def invite_existing_volunteer(
             "invited_by": current_user["user_id"],
         }
     ).execute()
+
+    supabase.table("event_activity_logs").insert({
+        "event_id": data.event_id,
+        "action_type": "invite",
+        "description": f"Invited volunteer {data.volunteer_id}",
+        "actor_id": current_user["user_id"]
+    }).execute()
 
     return {
         "message": f"Volunteer {data.volunteer_id} has been assigned to the event",
@@ -248,6 +263,13 @@ async def invite_new_volunteer(
         event_name=event.data[0]["name"],
         invitation_id=invitation_id,
     )
+
+    supabase.table("event_activity_logs").insert({
+        "event_id": data.event_id,
+        "action_type": "invite",
+        "description": f"Invited volunteer via email ({data.email})",
+        "actor_id": current_user["user_id"]
+    }).execute()
 
     return {"message": f"Invitation email sent to {data.email}"}
 
@@ -373,6 +395,13 @@ async def accept_invitation(
                 "event_id": invitation["event_id"],
             }
         ).execute()
+        
+        supabase.table("event_activity_logs").insert({
+            "event_id": invitation["event_id"],
+            "action_type": "assignment",
+            "description": f"Volunteer {current_user['user_id']} accepted invitation and was assigned to the event",
+            "actor_id": current_user["user_id"]
+        }).execute()
 
     return {"message": "Invitation accepted. You have been assigned to the event."}
 

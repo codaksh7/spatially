@@ -10,6 +10,7 @@ import {
   LuTicket,
   LuRadar,
   LuMail,
+  LuArrowLeftRight,
 } from "react-icons/lu";
 
 const navConfig = {
@@ -28,6 +29,7 @@ const navConfig = {
       { path: "/volunteer/dashboard", icon: LuLayoutDashboard, text: "Dashboard" },
       { path: "/volunteer/assignments", icon: LuRadar, text: "My Assignments" },
       { path: "/volunteer/invitations", icon: LuMail, text: "Invitations" },
+      { path: "/volunteer/switch-requests", icon: LuArrowLeftRight, text: "Switch Requests" },
     ]},
     { label: "Account", items: [
       { path: "/profile", icon: LuUser, text: "Profile" },
@@ -38,7 +40,7 @@ const navConfig = {
       { path: "/organizer/dashboard", icon: LuLayoutDashboard, text: "Dashboard" },
       { path: "/organizer/events", icon: LuCalendarDays, text: "Events" },
       { path: "/organizer/create-event", icon: LuCalendarPlus, text: "Create Event" },
-      { path: "/organizer/volunteers", icon: LuUsers, text: "Invite Volunteers" },
+      { path: "/organizer/invite", icon: LuUsers, text: "Invite Volunteers" },
     ]},
     { label: "Account", items: [
       { path: "/profile", icon: LuUser, text: "Profile" },

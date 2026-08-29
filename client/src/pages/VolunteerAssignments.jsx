@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { api } from "../utils/api";
 import { formatDate, getStatusColor } from "../utils/validators";
-import { LuMapPin, LuClock, LuRadar, LuCalendarDays } from "react-icons/lu";
+import { LuMapPin, LuClock, LuRadar, LuCalendarDays, LuMap } from "react-icons/lu";
 
 export default function VolunteerAssignments() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [data, setData] = useState({ events: [], assignments: [] });
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +52,14 @@ export default function VolunteerAssignments() {
                     {event.zones.map((z) => <span key={z} className="zone-tag">{z}</span>)}
                   </div>
                 )}
+                <div className="event-card-footer">
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => navigate(`/volunteer/event-map/${event.id}`)}
+                  >
+                    <LuMap size={14} /> View Map
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -64,3 +74,4 @@ export default function VolunteerAssignments() {
     </div>
   );
 }
+

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { api, setAccessToken, clearAccessToken } from "../utils/api";
+import { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 const AuthContext = createContext(null);
 
@@ -7,82 +7,97 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const tryRefresh = useCallback(async () => {
-    try {
-      const data = await api.post("/api/auth/refresh", null, { skipRefresh: true });
-      setAccessToken(data.access_token);
-      setUser(data.user);
-      return true;
-    } catch {
-      clearAccessToken();
+  const handleSession = (session) => {
+    if (session) {
+      const u = session.user;
+      setUser({
+        ...u,
+        ...(u.user_metadata || {})
+      });
+    } else {
       setUser(null);
-      return false;
     }
-  }, []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    tryRefresh().finally(() => setLoading(false));
-  }, [tryRefresh]);
+    // Check active session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        handleSession(session);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const login = async (email, password) => {
-    const data = await api.post("/api/auth/login", { email, password }, { skipRefresh: true });
-    setAccessToken(data.access_token);
-    setUser(data.user);
-    return data.user;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw new Error(error.message);
+    return { ...data.user, ...(data.user?.user_metadata || {}) };
   };
 
   const signup = async (email, password, full_name, nickname) => {
-    const data = await api.post(
-      "/api/auth/signup",
-      { email, password, full_name, nickname },
-      { skipRefresh: true }
-    );
-    return data;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name,
+          nickname,
+          user_type: "organizer" // Web signup defaults to organizer? Or what? We will map it in UI if needed
+        }
+      }
+    });
+    if (error) throw new Error(error.message);
+    return { ...data.user, ...(data.user?.user_metadata || {}) };
   };
 
   const volunteerSignup = async (email, password, full_name, nickname, invitation_token) => {
-    const data = await api.post(
-      "/api/auth/volunteer-signup",
-      { email, password, full_name, nickname, invitation_token },
-      { skipRefresh: true }
-    );
-    return data;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name,
+          nickname,
+          user_type: "volunteer",
+          invitation_token // Backend should verify this upon first access!
+        }
+      }
+    });
+    if (error) throw new Error(error.message);
+    return { ...data.user, ...(data.user?.user_metadata || {}) };
   };
 
   const logout = async () => {
-    try {
-      await api.post("/api/auth/logout");
-    } catch {
-      // proceed even if server call fails
-    }
-    clearAccessToken();
-    setUser(null);
-  };
-
-  const updateProfile = async (data) => {
-    const result = await api.put("/api/auth/profile", data);
-    setUser(result.user);
-    return result.user;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error(error.message);
   };
 
   const value = {
     user,
-    loading,
+    isAuthenticated: !!user,
     login,
     signup,
     volunteerSignup,
     logout,
-    updateProfile,
-    isAuthenticated: !!user,
+    loading,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
-}
+export const useAuth = () => useContext(AuthContext);

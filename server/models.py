@@ -193,3 +193,58 @@ class ResetPasswordRequest(BaseModel):
     @classmethod
     def check_password(cls, v):
         return validate_password_strength(v)
+
+
+class AssignPositionRequest(BaseModel):
+    volunteer_user_id: str
+    zone: str
+    pos_x: float = 50.0
+    pos_y: float = 50.0
+
+    @field_validator("zone")
+    @classmethod
+    def check_zone(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Zone is required")
+        return v.strip()
+
+    @field_validator("pos_x", "pos_y")
+    @classmethod
+    def check_position(cls, v):
+        if v < 0 or v > 100:
+            raise ValueError("Position must be between 0 and 100")
+        return v
+
+
+class UpdatePositionRequest(BaseModel):
+    volunteer_user_id: str
+    zone: str
+    pos_x: float
+    pos_y: float
+
+    @field_validator("pos_x", "pos_y")
+    @classmethod
+    def check_position(cls, v):
+        if v < 0 or v > 100:
+            raise ValueError("Position must be between 0 and 100")
+        return v
+
+
+class SwitchPositionRequest(BaseModel):
+    target_volunteer_id: str
+
+    @field_validator("target_volunteer_id")
+    @classmethod
+    def check_target(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Target volunteer ID is required")
+        return v.strip()
+
+
+class ZoneLayoutItem(BaseModel):
+    zone: str
+    x: float
+    y: float
+
+class ZoneLayoutRequest(BaseModel):
+    layout: List[ZoneLayoutItem]
