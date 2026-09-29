@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'event_list_screen.dart';
+import '../app/app_shell.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class BatteryCheckScreen extends StatefulWidget {
@@ -18,12 +18,17 @@ class _BatteryCheckScreenState extends State<BatteryCheckScreen> {
   void initState() {
     super.initState();
     _checkBattery();
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted && _checking) {
+        _proceed();
+      }
+    });
   }
 
   Future<void> _checkBattery() async {
     try {
       final battery = Battery();
-      final level = await battery.batteryLevel;
+      final level = await battery.batteryLevel.timeout(const Duration(milliseconds: 500));
       if (!mounted) return;
       
       if (level >= 50) {
@@ -36,17 +41,18 @@ class _BatteryCheckScreenState extends State<BatteryCheckScreen> {
       }
     } catch (e) {
       print('DEBUG: Failed to check battery level: $e');
-      // If we can't check the battery (e.g. unsupported platform), just proceed.
       _proceed();
     }
   }
 
   void _proceed() {
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const EventListScreen()),
-      );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SpatiallyAppShell()),
+        );
+      }
+    });
   }
 
   @override
