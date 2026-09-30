@@ -1,70 +1,80 @@
 # Spatially
 
 ## Project Overview
-Spatially is a proof-of-concept BLE-based crowd monitoring and event ticketing system. It allows organizers to manage events, sell tickets, and passively track attendee density across different zones using BLE signals.
+Spatially is an intelligent event operations and spatial crowd monitoring platform connecting attendees, volunteer staff, and event organizers. It combines passive BLE-based proximity awareness, QR ticketing, and comprehensive real-time operational workflows.
 
-The system consists of three planned surfaces:
-1. **Attendee Mobile** (`attendee_mobile`): App for attendees to purchase tickets, display QR codes for entry, and broadcast their presence securely via BLE.
-2. **Volunteer Mobile** (`volunteer_mobile`): App for event staff to scan QR tickets and passively scan for attendee BLE signals, logging observations and active counts to the backend.
-3. **Organizer Web**: (Not yet built) A dashboard for event organizers to monitor crowd density and manage events.
+The system consists of three primary surfaces:
+1. **Attendee Mobile** (`apps/attendee_mobile`): Flutter mobile app for attendees (ticket discovery, QR admission pass, live event sessions, spatial maps, passport/gamification, ephemeral Connect networking, and passive BLE broadcasting).
+2. **Volunteer Mobile** (`apps/volunteer_mobile`): Flutter mobile app for event staff (QR ticket check-in, passive BLE observation scanning, real-time communications, incident management, attendee assistance, lost & found, team/shift operations, proactive event awareness feed, and operational health telemetry).
+3. **Organizer Web Platform** (`client/` and `server/`): Web dashboard for event organizers to configure events, oversee zones, manage volunteers/staff, and monitor real-time crowd dynamics and operational health.
 
-## Architecture
-- **Mobile Apps**: Built with Flutter and deployed on Android.
-- **Backend**: Supabase (PostgreSQL, Authentication, REST API).
-- **Proximity Tracking**: Native Android Foreground Services for continuous BLE advertising/scanning. Attendee phones act as BLE peripherals, and Volunteer phones act as scanners.
-- **Check-in**: Standard camera-based QR code scanning for ticket check-in.
+## Repository Structure
+```
+majorProject/
+├── apps/
+│   ├── attendee_mobile/          # Attendee Flutter app (Android)
+│   ├── volunteer_mobile/         # Volunteer Staff Flutter app (Android)
+│   └── flutter_ble_peripheral_patched/ # Local patched BLE peripheral plugin
+├── client/                       # Organizer Dashboard Web App (React + Vite)
+├── server/                       # Organizer Web Backend API (Python / FastAPI)
+├── supabase/
+│   └── migrations/               # PostgreSQL DDL migrations, RLS policies & RPCs
+├── Organizer Handoff Mds/        # Curated handoff documentation for Organizer Web
+└── README.md                     # Repository entrypoint
+```
 
-## Database Schema
-The database is built on PostgreSQL via Supabase. The source of truth for the schema can be found in `apps/volunteer_mobile/supabase/schema*.sql`.
+## Documentation & Handoff
+Detailed architectural, database, and operational system guides for Organizer Web development are located in:
+- **`Organizer Handoff Mds/`**:
+  - `ORGANIZER_HANDOFF.md`: Full architectural context, surface responsibilities, and system capabilities.
+  - `DATABASE_AND_RPC_REFERENCE.md`: Complete guide to tables, relationships, RPCs, and Realtime channels.
+  - `OPERATIONAL_SYSTEMS.md`: Guide to existing mobile operational subsystems (Crowd, Incidents, Comms, Shifts, Health).
+  - `CURRENT_PROJECT_STATE.md`: Snapshot of implemented features, test baselines, and current roadmap.
+  - `REPOSITORY_HANDOFF_PREPARATION_REPORT.md`: Pre-commit repository audit and handoff verification.
 
-- **`events`**: Defines events, venues, dates, and an array of valid `zones` (e.g., Main Stage, Food Court).
-- **`tickets`**: Links an `event_id` to an `attendee_id` (a local UUID) and holds a unique `ticket_code` along with its status (`purchased` vs `checked_in`).
-- **`volunteer_assignments`**: Links a `volunteer_id` (Auth user) to an `event_id`.
-- **`observations`**: The core telemetry table tracking attendee presence. Links `ephemeral_id` (attendee's rotating BLE identifier) to a `volunteer_id`, `event_id`, and `zone`.
-- **`volunteer_counts`**: Stores the live active device counts grouped by `volunteer_id`, `event_id`, and `zone` for the organizer dashboard.
+> Note: Private internal developer logs and historical phase audits are maintained in a local private directory (`Required Mds/`) which is excluded from version control.
 
-## Setup Instructions
+## Architecture & Technology Stack
+- **Mobile Apps**: Flutter (Dart) targeting Android (foreground BLE scanner and peripheral services).
+- **Organizer Web**: React (Vite) frontend and Python FastAPI backend service.
+- **Backend & Database**: Supabase (PostgreSQL, Supabase Auth, Row Level Security, Realtime CDC).
+- **Proximity & Telemetry**: Native Android BLE advertising and scanning with rotating ephemeral IDs for attendee privacy.
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repo-url>
-   cd majorProject
-   ```
+## Quick Start
 
-2. **Install Flutter Dependencies**:
-   For both mobile apps, run:
-   ```bash
-   cd apps/attendee_mobile
-   flutter pub get
-   
-   cd ../volunteer_mobile
-   flutter pub get
-   ```
+### 1. Mobile Apps (Flutter)
+```bash
+# Attendee App
+cd apps/attendee_mobile
+flutter pub get
+flutter run
 
-3. **Supabase Configuration**:
-   The apps connect to Supabase using constants defined in `lib/config/supabase_config.dart`. **DO NOT hardcode real credentials in this repository.** Obtain the `SUPABASE_URL` and `SUPABASE_ANON_KEY` securely from the team and place them in your local config files before running the apps.
+# Volunteer App
+cd apps/volunteer_mobile
+flutter pub get
+flutter run
+```
+*Note: Mobile apps require `lib/config/supabase_config.dart` containing project URL and anon key.*
 
-## Current Status
+### 2. Organizer Web Frontend
+```bash
+cd client
+npm install
+npm run dev
+```
 
-**Built and Working:**
-- End-to-end BLE detection pipeline (foreground services, background persistence).
-- Rotating Ephemeral BLE ID (SHA-256 derived, 6-byte truncated) for attendee privacy.
-- Volunteer authentication via Supabase Auth.
-- Multi-event support and zone selection.
-- Ticketing system with QR generation and scanner check-in flow.
-- Offline-first SQLite write queue for telemetry observations (flushes on connection).
-- Live active device counting upserts.
+### 3. Organizer Web Backend
+```bash
+cd server
+python -m venv venv
+# Windows: venv\Scripts\activate | Unix: source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
 
-**Not Yet Built:**
-- Organizer web page / dashboard.
-- Real payment integration for tickets.
-- Row Level Security (RLS) and security hardening.
+### 4. Database Migrations
+Database migrations are maintained in `supabase/migrations/` and applied to the shared Supabase project.
 
-## Known Limitations
-- **RLS Disabled**: Supabase Row Level Security (RLS) is currently completely disabled across all tables for the prototype phase. This must be addressed before production.
-- **KGP Warning**: You may see a Kotlin Gradle Plugin (KGP) warning during Flutter builds for `app_settings` and `mobile_scanner`. This is non-blocking.
-- **Android Exclusivity**: The BLE architecture is heavily reliant on Android Foreground Services and custom Android plugin forks.
-
-## Team
-- **Aryan**: Mobile Apps (`attendee_mobile`, `volunteer_mobile`)
-- **Blaise, Daksh, Devansh**: Organizer Web Dashboard (Upcoming)
+## Team & Responsibilities
+- **Mobile Apps & Core Event Operations**: Aryan (`apps/attendee_mobile`, `apps/volunteer_mobile`, `supabase/migrations/`)
+- **Organizer Web Dashboard & API**: Organizer Team (`client/`, `server/`)

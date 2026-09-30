@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../repositories/volunteer_assignment_repository.dart';
+import '../services/session_state.dart';
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final VolunteerAssignmentRepository? assignmentRepository;
+
+  const LoginScreen({super.key, this.assignmentRepository});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -12,10 +17,17 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  late final VolunteerAssignmentRepository _assignmentRepo;
   
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _assignmentRepo = widget.assignmentRepository ?? VolunteerAssignmentRepositoryImpl();
+  }
 
   @override
   void dispose() {
@@ -46,15 +58,29 @@ class _LoginScreenState extends State<LoginScreen> {
       final supabaseInstance = Supabase.instance;
       final client = supabaseInstance.client;
       final auth = client.auth;
-      
-      await auth.signInWithPassword(
+      final authResponse = await auth.signInWithPassword(
         email: email,
         password: password,
       );
 
-      // No explicit navigation needed here. The StreamBuilder in _AuthGate
-      // (main.dart) listens to onAuthStateChange and will automatically
-      // swap this screen out for ZoneSelectionScreen when the auth event fires.
+      final user = authResponse.user;
+      if (user != null) {
+        // Step 1: Verify authoritative server role in public.profiles
+        final role = await _assignmentRepo.getVolunteerRole(user.id);
+        if (role != 'volunteer' && role != 'admin') {
+          // Reject non-volunteer roles (e.g. attendee)
+          await auth.signOut();
+          SessionState.instance.clear();
+          if (mounted) {
+            setState(() {
+              _errorMessage =
+                  'Access Denied: Account role ("${role ?? "none"}") is not authorized for Volunteer staff access.';
+            });
+          }
+          return;
+        }
+        SessionState.instance.userRole = role;
+      }
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {

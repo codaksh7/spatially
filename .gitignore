@@ -1,30 +1,91 @@
-.env
-.env.local
-.env.*.local
-start_project.bat
-*.bat
-.DS_Store
-*.log
-*.sqlite3
-*.db
-ATTENDEE_LOG.md
-VOLUNTEER_LOG.md
-.vscode/
-.idea/
+# ============================================================
+# Private Development & Internal Knowledge Base
+# ============================================================
+/Required Mds/
 
+# ============================================================
+# Environment & Secret Configurations (keep examples tracked)
+# ============================================================
+.env
+.env*.local
+*.env
+client/.env
+client/.env*.local
+server/.env
+server/.env*.local
+!client/.env.example
+!server/.env.example
 apps/volunteer_mobile/lib/config/supabase_config.dart
 apps/attendee_mobile/lib/config/supabase_config.dart
-apps/flutter_ble_peripheral_patched/android/.gradle/
 
+# ============================================================
+# Database
+# ============================================================
+*.sqlite3
+*.db
+
+# ============================================================
+# Flutter & Dart Build Artifacts
+# ============================================================
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+
+# ============================================================
+# Android & Native Build Artifacts
+# ============================================================
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.keystore
+**/*.jks
+
+# ============================================================
+# Node / Frontend Build Artifacts
+# ============================================================
+**/node_modules/
+**/dist/
+**/.vite/
+client/.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Python / Backend Build Artifacts
+# ============================================================
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/venv/
+**/.venv/
+**/ENV/
+
+# ============================================================
+# IDE & System Files
+# ============================================================
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+ehthumbs.db
 hs_err_pid*.log
 
-# Backend
-server/venv/
-server/__pycache__/
-*.pyc
-
-# Frontend
-client/node_modules/
-client/dist/
-client/build/
-client/.eslintcache
+# ============================================================
+# Local Scripts & Working Logs
+# ============================================================
+start_project.bat
+*.bat
+*.log
+ATTENDEE_LOG.md
+VOLUNTEER_LOG.md

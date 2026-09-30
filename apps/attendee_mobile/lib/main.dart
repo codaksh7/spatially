@@ -4,13 +4,16 @@ import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:app_settings/app_settings.dart';
-import 'screens/battery_check_screen.dart';
 import 'services/attendee_identity.dart';
 import 'services/ephemeral_id.dart';
+import 'package:flutter/foundation.dart';
+import 'package:marionette_flutter/marionette_flutter.dart';
 
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
+
+import 'app/app.dart';
 
 // Native BleAdvertisingService channel — we talk to the Kotlin service directly
 // via a standard MethodChannel so Flutter doesn't need to own the BLE advertiser.
@@ -19,28 +22,24 @@ const _bleServiceChannel = MethodChannel('dev.steenbakker.flutter_ble_peripheral
 const _spatiallyServiceUuid = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
 
 void main() async {
-  // Ensure Flutter binding is ready before touching shared_preferences.
-  WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) {
+    MarionetteBinding.ensureInitialized();
+  } else {
+    WidgetsFlutterBinding.ensureInitialized();
+  }
+
   await AttendeeIdentity.init();
-  
+
   await Supabase.initialize(
     url: supabaseUrl,
-    anonKey: supabaseAnonKey,
+    publishableKey: supabaseAnonKey,
   );
 
-  runApp(const MyApp());
+  runApp(const SpatiallyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: BatteryCheckScreen(),
-    );
-  }
-}
+/// Backward compatibility alias for MyApp
+typedef MyApp = SpatiallyApp;
 
 class AdvertiserScreen extends StatefulWidget {
   final bool autoStart;
@@ -260,7 +259,7 @@ class _AdvertiserScreenState extends State<AdvertiserScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
         title: Text.rich(
           TextSpan(
             children: [

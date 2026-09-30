@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../main.dart'; // for AdvertiserScreen
-import 'package:google_fonts/google_fonts.dart';
 
+import '../design_system/design_system.dart';
+import '../main.dart'; // for AdvertiserScreen
+import '../services/offline_service.dart';
+import '../utils/date_formatter.dart';
+
+/// Spatially Attendee Ticket Detail Screen.
+/// 
+/// Modernized view displaying the verified admission pass, QR code for scanner entry,
+/// and the active BLE presence transition button.
 class TicketDetailScreen extends StatelessWidget {
   final Map<String, dynamic> ticket;
 
@@ -10,131 +17,226 @@ class TicketDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textPrimary = isDark ? SpatiallyColors.darkTextPrimary : SpatiallyColors.lightTextPrimary;
+    final textSecondary = isDark ? SpatiallyColors.darkTextSecondary : SpatiallyColors.lightTextSecondary;
+    final isOffline = !OfflineService().isOnline;
+
     final event = ticket['events'] as Map<String, dynamic>?;
-    final eventName = event?['name'] ?? 'Unknown Event';
-    final venue = event?['venue'] ?? 'TBA';
-    final ticketCode = ticket['ticket_code'] as String;
-    final status = ticket['status'] as String;
-
-    String formattedDate = 'Unknown Date';
-    if (event?['event_date'] != null) {
-      final parsedDate = DateTime.parse(event!['event_date'] as String).toLocal();
-      final month = parsedDate.month.toString().padLeft(2, '0');
-      final day = parsedDate.day.toString().padLeft(2, '0');
-      final hour = parsedDate.hour.toString().padLeft(2, '0');
-      final minute = parsedDate.minute.toString().padLeft(2, '0');
-      formattedDate = '${parsedDate.year}-$month-$day $hour:$minute';
-    }
-
+    final eventName = event?['name']?.toString() ?? 'Event Admission';
+    final venue = event?['venue']?.toString() ?? 'TBA';
+    final ticketCode = ticket['ticket_code']?.toString() ?? '';
+    final status = (ticket['status']?.toString() ?? 'purchased').toLowerCase();
     final isPurchased = status == 'purchased';
+    final isCheckedIn = status == 'checked_in';
+
+    final dateTimeStr = SpatiallyDateFormatter.formatDateTime(
+      event?['event_date'],
+      includeYear: true,
+    );
+
+    // P6: Compute safe-area bottom padding at build time
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final scrollPadding = SpatiallySpacing.screenPadding.copyWith(
+      bottom: SpatiallySpacing.screenPadding.bottom +
+          bottomInset +
+          SpatiallySpacing.xxxl,
+    );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'Spatially ',
-                style: GoogleFonts.audiowide(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextSpan(
-                text: 'for Attendee',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ],
-          ),
-        ),
+      appBar: const SpatiallyAppBar(
+        title: 'Ticket Pass',
+        automaticallyImplyLeading: true,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                eventName,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+        padding: scrollPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (isOffline)
+              const SpatiallyOfflineBanner(
+                message: 'Offline Mode • QR pass ready for gate scanner',
               ),
-              const SizedBox(height: 8),
-              Text(
-                venue,
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                formattedDate,
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Status: ${status.toUpperCase()}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isPurchased ? Colors.green : Colors.grey,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 48),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        spreadRadius: 2,
+
+            // Event Header Summary Card
+            SpatiallyCard(
+              hasSubtleGlow: isPurchased,
+              padding: const EdgeInsets.all(SpatiallySpacing.lg),
+              child: Column(
+                children: [
+                  // Pass Status Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isCheckedIn
+                          ? SpatiallyColors.lightTextSecondary.withValues(alpha: 0.12)
+                          : SpatiallyColors.success.withValues(alpha: 0.12),
+                      borderRadius: SpatiallyRadius.borderFull,
+                      border: Border.all(
+                        color: isCheckedIn
+                            ? SpatiallyColors.lightTextSecondary.withValues(alpha: 0.3)
+                            : SpatiallyColors.success.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      isCheckedIn ? 'CHECKED IN' : 'VALID ADMISSION',
+                      style: SpatiallyTypography.badge(
+                        color: isCheckedIn ? SpatiallyColors.lightTextSecondary : SpatiallyColors.success,
+                      ),
+                    ),
+                  ),
+                  SpatiallySpacing.gapVerticalMd,
+
+                  // Event Name
+                  Text(
+                    eventName,
+                    style: SpatiallyTypography.headingLarge(color: textPrimary),
+                    textAlign: TextAlign.center,
+                  ),
+                  SpatiallySpacing.gapVerticalSm,
+
+                  // Venue
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.location_on_rounded,
+                        size: 16,
+                        color: SpatiallyColors.spatialCyan,
+                      ),
+                      SpatiallySpacing.gapHorizontalXs,
+                      Flexible(
+                        child: Text(
+                          venue,
+                          style: SpatiallyTypography.subheading(color: textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ],
                   ),
-                  child: QrImageView(
-                    data: ticketCode,
-                    version: QrVersions.auto,
-                    size: 250.0,
+                  SpatiallySpacing.gapVerticalXs,
+
+                  // Date
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
+                        color: SpatiallyColors.violet,
+                      ),
+                      SpatiallySpacing.gapHorizontalXs,
+                      Text(
+                        dateTimeStr,
+                        style: SpatiallyTypography.caption(color: textSecondary),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 24),
+            ),
+
+            SpatiallySpacing.gapVerticalLg,
+
+            // QR Code Presentation Card
+            SpatiallyCard(
+              padding: const EdgeInsets.all(SpatiallySpacing.xl),
+              child: Column(
+                children: [
+                  Text(
+                    isCheckedIn ? 'ACTIVE PASS • ENTRY VERIFIED' : 'SCAN FOR ENTRY',
+                    style: SpatiallyTypography.badge(
+                      color: isCheckedIn ? SpatiallyColors.success : textSecondary,
+                    ),
+                  ),
+                  SpatiallySpacing.gapVerticalLg,
+
+                  // White QR Container for contrast
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: SpatiallyRadius.borderMd,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: QrImageView(
+                      data: ticketCode,
+                      version: QrVersions.auto,
+                      size: 220.0,
+                    ),
+                  ),
+
+                  SpatiallySpacing.gapVerticalLg,
+
+                  // Monospaced Ticket Code
+                  SelectableText(
+                    ticketCode,
+                    style: SpatiallyTypography.caption(
+                      color: textSecondary,
+                    ).copyWith(
+                      letterSpacing: 1.2,
+                      fontFamily: 'monospace',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  if (isOffline) ...[
+                    SpatiallySpacing.gapVerticalMd,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? SpatiallyColors.darkSurfaceElevated : SpatiallyColors.lightBackground,
+                        borderRadius: SpatiallyRadius.borderSm,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 14, color: SpatiallyColors.warning),
+                          SpatiallySpacing.gapHorizontalSm,
+                          Expanded(
+                            child: Text(
+                              'Pass is stored locally. Scanner reads code optically at entrance. Cloud re-verification requires connection.',
+                              style: SpatiallyTypography.caption(color: textSecondary).copyWith(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            SpatiallySpacing.gapVerticalXl,
+
+            // BLE Attendance Activation CTA
+            if (isPurchased) ...[
+              SpatiallyPrimaryButton(
+                label: 'Reached at Event (Start Beacon)',
+                icon: const Icon(Icons.bluetooth_searching_rounded, color: Colors.white, size: 20),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AdvertiserScreen(autoStart: true),
+                    ),
+                  );
+                },
+              ),
+              SpatiallySpacing.gapVerticalSm,
               Text(
-                ticketCode,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  letterSpacing: 1.5,
-                ),
+                'Broadcast your presence to venue scanners & check-in gates.',
+                style: SpatiallyTypography.caption(color: textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 48),
-              if (isPurchased)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const AdvertiserScreen(autoStart: true),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 18),
-                  ),
-                  child: const Text('Reached at Event'),
-                ),
             ],
-          ),
+          ],
         ),
       ),
     );

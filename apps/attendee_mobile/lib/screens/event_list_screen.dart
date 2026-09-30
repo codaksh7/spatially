@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-import '../services/attendee_identity.dart';
-import 'my_tickets_screen.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../design_system/design_system.dart';
+import '../features/explore/event_detail_screen.dart';
+import '../features/explore/models/spatially_event.dart';
+import '../utils/date_formatter.dart';
+import 'my_tickets_screen.dart';
+
+/// Spatially Attendee Event List Screen.
+/// 
+/// Modernized catalog view listing active and upcoming events with Spatially
+/// design tokens, clean cards, and direct navigation to EventDetailScreen.
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
 
@@ -13,112 +19,66 @@ class EventListScreen extends StatefulWidget {
 }
 
 class _EventListScreenState extends State<EventListScreen> {
-  final Future<List<Map<String, dynamic>>> _eventsFuture = Supabase.instance.client
-      .from('events')
-      .select()
-      .inFilter('status', ['upcoming', 'live'])
-      .order('event_date', ascending: true);
+  bool _loading = true;
+  String? _error;
+  List<SpatiallyEvent> _events = [];
 
-  Future<void> _purchaseTicket(BuildContext context, Map<String, dynamic> event) async {
-    final eventName = event['name'] ?? 'Unknown Event';
-    final eventId = event['id'];
-    final attendeeId = AttendeeIdentity.deviceId;
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
 
-    if (attendeeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Device ID not initialized.')),
-      );
-      return;
-    }
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Get Ticket'),
-        content: Text('Get ticket for $eventName?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true || !context.mounted) return;
+  Future<void> _loadEvents() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
-      // Check for existing ticket
-      final existingTicket = await Supabase.instance.client
-          .from('tickets')
+      final response = await Supabase.instance.client
+          .from('events')
           .select()
-          .eq('event_id', eventId)
-          .eq('attendee_id', attendeeId)
-          .maybeSingle();
+          .inFilter('status', ['upcoming', 'live'])
+          .order('event_date', ascending: true);
 
-      if (!context.mounted) return;
+      final list = (response as List)
+          .map((row) => SpatiallyEvent.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
 
-      if (existingTicket != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You already have a ticket for this event.')),
-        );
-        return;
+      if (mounted) {
+        setState(() {
+          _events = list;
+          _loading = false;
+        });
       }
-
-      // Insert new ticket
-      await Supabase.instance.client.from('tickets').insert({
-        'event_id': eventId,
-        'attendee_id': attendeeId,
-        'ticket_code': const Uuid().v4(),
-        'status': 'purchased',
-      });
-
-      if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successfully got ticket for $eventName!')),
-      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error getting ticket: $e')),
-        );
+      if (mounted) {
+        setState(() {
+          _error = 'Unable to load event catalog: $e';
+          _loading = false;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textPrimary = isDark ? SpatiallyColors.darkTextPrimary : SpatiallyColors.lightTextPrimary;
+    final textSecondary = isDark ? SpatiallyColors.darkTextSecondary : SpatiallyColors.lightTextSecondary;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'Spatially ',
-                style: GoogleFonts.audiowide(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextSpan(
-                text: 'for Attendee',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ],
-          ),
-        ),
+      appBar: SpatiallyAppBar(
+        title: 'Event Catalog',
+        automaticallyImplyLeading: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.confirmation_number),
+            icon: const Icon(Icons.confirmation_number_rounded),
             tooltip: 'My Tickets',
+            color: SpatiallyColors.violet,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MyTicketsScreen()),
@@ -127,50 +87,133 @@ class _EventListScreenState extends State<EventListScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _eventsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error loading events: ${snapshot.error}'));
-          }
+      body: RefreshIndicator(
+        onRefresh: _loadEvents,
+        color: SpatiallyColors.violet,
+        child: _buildBody(textPrimary: textPrimary, textSecondary: textSecondary),
+      ),
+    );
+  }
 
-          final events = snapshot.data;
-          if (events == null || events.isEmpty) {
-            return const Center(child: Text('No upcoming events found.'));
-          }
+  Widget _buildBody({
+    required Color textPrimary,
+    required Color textSecondary,
+  }) {
+    if (_loading) {
+      return const Center(
+        child: SpatiallyLoadingState(message: 'Loading events catalog...'),
+      );
+    }
 
-          return ListView.builder(
-            itemCount: events.length,
-            itemBuilder: (context, index) {
-              final event = events[index];
-              final dateStr = event['event_date'] as String;
-              final parsedDate = DateTime.parse(dateStr).toLocal();
-              
-              final month = parsedDate.month.toString().padLeft(2, '0');
-              final day = parsedDate.day.toString().padLeft(2, '0');
-              final hour = parsedDate.hour.toString().padLeft(2, '0');
-              final minute = parsedDate.minute.toString().padLeft(2, '0');
-              final formattedDate = '${parsedDate.year}-$month-$day $hour:$minute';
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: SpatiallySpacing.screenPadding,
+          child: SpatiallyErrorState(
+            error: _error!,
+            onRetry: _loadEvents,
+          ),
+        ),
+      );
+    }
 
-              return ListTile(
-                title: Text(event['name'] ?? 'Unknown Event'),
-                subtitle: Text('${event['venue'] ?? 'TBA'} • $formattedDate'),
-                trailing: Text(
-                  (event['status'] as String).toUpperCase(),
-                  style: TextStyle(
-                    color: event['status'] == 'live' ? Colors.green : Colors.blue,
-                    fontWeight: FontWeight.bold,
-                  ),
+    if (_events.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: SpatiallySpacing.screenPadding,
+          child: SpatiallyEmptyState(
+            title: 'No Events Found',
+            description: 'There are no active or upcoming events available right now.',
+            icon: Icons.event_busy_rounded,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: SpatiallySpacing.screenPadding,
+      itemCount: _events.length,
+      separatorBuilder: (context, index) => SpatiallySpacing.gapVerticalMd,
+      itemBuilder: (context, index) {
+        final event = _events[index];
+        final dateTimeStr = SpatiallyDateFormatter.formatDateTime(event.eventDate);
+
+        return SpatiallyCard(
+          hasSubtleGlow: event.isLive,
+          padding: const EdgeInsets.all(SpatiallySpacing.md),
+          child: InkWell(
+            borderRadius: SpatiallyRadius.borderMd,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(event: event),
                 ),
-                onTap: () => _purchaseTicket(context, event),
               );
             },
-          );
-        },
-      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    event.isLive
+                        ? SpatiallyStatusBadge.live()
+                        : SpatiallyStatusBadge.upcoming(),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: textSecondary,
+                    ),
+                  ],
+                ),
+                SpatiallySpacing.gapVerticalSm,
+                Text(
+                  event.name,
+                  style: SpatiallyTypography.subheading(color: textPrimary),
+                ),
+                SpatiallySpacing.gapVerticalSm,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_rounded,
+                      size: 15,
+                      color: SpatiallyColors.spatialCyan,
+                    ),
+                    SpatiallySpacing.gapHorizontalXs,
+                    Expanded(
+                      child: Text(
+                        event.venue,
+                        style: SpatiallyTypography.caption(color: textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                SpatiallySpacing.gapVerticalXs,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: SpatiallyColors.violet,
+                    ),
+                    SpatiallySpacing.gapHorizontalXs,
+                    Expanded(
+                      child: Text(
+                        dateTimeStr,
+                        style: SpatiallyTypography.caption(color: textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

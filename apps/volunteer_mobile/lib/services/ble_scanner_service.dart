@@ -216,22 +216,18 @@ class BleScannerService {
               isSpatiallyDevice: isSpatiallyDevice,
               volunteerId: SessionState.instance.volunteerId,
               eventId: SessionState.instance.eventId,
-              zone: SessionState.instance.zone,
+              zone: SessionState.instance.zoneCode ?? SessionState.instance.zone,
             );
             _controller.add(obs);
             
-            // Fire-and-forget network write, deferred via microtask so that
-            // even the synchronous preamble of sendObservation() (client lookup,
-            // JSON encoding, HTTP request construction) does not run inline
-            // inside this BLE scan callback — it is scheduled after the current
-            // event-loop turn completes, keeping the scan loop lean.
-            // Note: scheduleMicrotask is used instead of Future.microtask to 
-            // completely bypass the Dart CFE generic type-inference crash 
-            // (InferenceVisitorImpl.visitIfStatement) on Windows.
-            scheduleMicrotask(() {
-              final telemetry = TelemetryService();
-              telemetry.sendObservation(obs);
-            });
+            // Fire-and-forget network write only for verified Spatially devices.
+            // Ambient non-Spatially devices remain in UI counters but are NEVER persisted.
+            if (isSpatiallyDevice) {
+              scheduleMicrotask(() {
+                final telemetry = TelemetryService();
+                telemetry.sendObservation(obs);
+              });
+            }
           }
         }
 
