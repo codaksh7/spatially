@@ -8,6 +8,8 @@ import EventCountdown from "../components/EventCountdown";
 import VenueMap from "../components/VenueMap";
 import VolunteerPlacer from "../components/VolunteerPlacer";
 import EventLogsPanel from "../components/EventLogsPanel";
+import OperationalHealthPanel from "../components/OperationalHealthPanel";
+import IncidentCommandPanel from "../components/IncidentCommandPanel";
 
 export default function EventDetail() {
   const { id } = useParams();
@@ -219,6 +221,9 @@ export default function EventDetail() {
         </div>
 
       </div>
+
+      <OperationalHealthPanel eventId={id} />
+      <IncidentCommandPanel eventId={id} />
 
       {/* VENUE MAP SECTION */}
       {event.zones?.length > 0 && (

@@ -40,17 +40,15 @@ async def get_zone_density(event_id: str, current_user: dict = Depends(get_curre
     density = {}
     try:
         crowd = (
-            supabase.table("crowd_data")
-            .select("zone, device_count")
-            .eq("event_id", event_id)
+            supabase.rpc("get_zone_crowd_summary", {"p_event_id": event_id})
             .execute()
         )
         for row in crowd.data:
-            zone = row.get("zone", "unknown")
-            count = row.get("device_count", 0)
-            density[zone] = density.get(zone, 0) + count
-    except Exception:
-        # crowd_data table may not exist yet — return empty densities
+            zone = row.get("zone_name", "unknown")
+            count = row.get("active_count", 0)
+            density[zone] = count
+    except Exception as e:
+        print(f"Error fetching density: {e}")
         pass
 
     # Ensure all configured zones appear in the response

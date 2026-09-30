@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { formatDate, formatTime } from "../utils/validators";
-import { LuActivity, LuMapPin, LuUsers, LuArrowLeftRight, LuCircleCheck, LuArrowRight } from "react-icons/lu";
+import { LuActivity, LuMapPin, LuUsers, LuArrowLeftRight, LuCircleCheck, LuArrowRight, LuTriangleAlert, LuMessageSquare, LuSquareCheck } from "react-icons/lu";
+import { supabase } from "../utils/supabaseClient";
 
 export default function EventLogsPanel({ eventId, refreshTrigger }) {
   const [logs, setLogs] = useState([]);
@@ -12,30 +13,40 @@ export default function EventLogsPanel({ eventId, refreshTrigger }) {
   useEffect(() => {
     async function fetchLogs() {
       try {
-        const res = await api.get(`/api/logs/${eventId}?limit=5`);
-        setLogs(res.logs || []);
+        const { data, error } = await supabase.rpc('get_event_operational_timeline', { 
+          p_event_id: eventId,
+          p_limit: 10
+        });
+        if (error) throw error;
+        setLogs(data || []);
       } catch (err) {
-        console.error("Failed to fetch logs", err);
+        console.error("Failed to fetch operational timeline", err);
       } finally {
         setLoading(false);
       }
     }
     fetchLogs();
+
+    const channel = supabase.channel(`timeline_${eventId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_incidents', filter: `event_id=eq.${eventId}` }, fetchLogs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shift_handoffs', filter: `event_id=eq.${eventId}` }, fetchLogs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supervisor_tasks', filter: `event_id=eq.${eventId}` }, fetchLogs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coverage_requests', filter: `event_id=eq.${eventId}` }, fetchLogs)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [eventId, refreshTrigger]);
 
   const getLogIcon = (type) => {
     switch (type) {
-      case "placement":
-      case "move":
-        return <LuMapPin size={14} className="log-icon placement" />;
-      case "switch":
-        return <LuArrowLeftRight size={14} className="log-icon switch" />;
-      case "invite":
-        return <LuUsers size={14} className="log-icon invite" />;
-      case "assignment":
-        return <LuCircleCheck size={14} className="log-icon assignment" />;
-      default:
-        return <LuActivity size={14} className="log-icon default" />;
+      case "incident": return <LuTriangleAlert size={14} className="log-icon warning" />;
+      case "message": return <LuMessageSquare size={14} className="log-icon info" />;
+      case "task": return <LuSquareCheck size={14} className="log-icon success" />;
+      case "coverage": return <LuUsers size={14} className="log-icon placement" />;
+      case "handoff": return <LuArrowLeftRight size={14} className="log-icon switch" />;
+      default: return <LuActivity size={14} className="log-icon default" />;
     }
   };
 
@@ -63,12 +74,16 @@ export default function EventLogsPanel({ eventId, refreshTrigger }) {
           {logs.map((log) => (
             <div key={log.id} className="event-log-item">
               <div className="event-log-icon-wrap">
-                {getLogIcon(log.action_type)}
+                {getLogIcon(log.source_type || log.action_type)}
               </div>
               <div className="event-log-content">
-                <div className="event-log-desc">{log.description}</div>
+                <div className="event-log-desc">
+                  <strong>{log.title || log.event_type}</strong> - {log.description}
+                  {log.zone_name && <span className="zone-tag" style={{ marginLeft: "6px" }}>{log.zone_name}</span>}
+                </div>
                 <div className="event-log-meta">
-                  {formatDate(log.created_at)} at {formatTime(log.created_at)}
+                  {log.actor_name && <span>By {log.actor_name} &bull; </span>}
+                  {formatDate(log.timestamp || log.created_at)} at {formatTime(log.timestamp || log.created_at)}
                 </div>
               </div>
             </div>
