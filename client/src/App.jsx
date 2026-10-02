@@ -27,6 +27,17 @@ import EventLogs from "./pages/EventLogs";
 import CreateEvent from "./pages/CreateEvent";
 import InviteVolunteer from "./pages/InviteVolunteer";
 
+import OrganizerIncidents from "./pages/OrganizerIncidents";
+import OrganizerVolunteers from "./pages/OrganizerVolunteers";
+import OrganizerTasks from "./pages/OrganizerTasks";
+import OrganizerComms from "./pages/OrganizerComms";
+import OrganizerCrowd from "./pages/OrganizerCrowd";
+import OrganizerZones from "./pages/OrganizerZones";
+import OrganizerContent from "./pages/OrganizerContent";
+import OrganizerAnalytics from "./pages/OrganizerAnalytics";
+import OrganizerAssistance from "./pages/OrganizerAssistance";
+import OrganizerMap from "./pages/OrganizerMap";
+
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -111,6 +122,16 @@ export default function App() {
               <Route path="/organizer/events/:id" element={<EventDetail />} />
               <Route path="/organizer/event-logs/:eventId" element={<EventLogs />} />
               <Route path="/organizer/invite" element={<InviteVolunteer />} />
+              <Route path="/organizer/incidents" element={<OrganizerIncidents />} />
+              <Route path="/organizer/volunteers" element={<OrganizerVolunteers />} />
+              <Route path="/organizer/tasks" element={<OrganizerTasks />} />
+              <Route path="/organizer/comms" element={<OrganizerComms />} />
+              <Route path="/organizer/crowd" element={<OrganizerCrowd />} />
+              <Route path="/organizer/zones" element={<OrganizerZones />} />
+              <Route path="/organizer/content" element={<OrganizerContent />} />
+              <Route path="/organizer/analytics" element={<OrganizerAnalytics />} />
+              <Route path="/organizer/assistance" element={<OrganizerAssistance />} />
+              <Route path="/organizer/map" element={<OrganizerMap />} />
             </Route>
 
             {/* Shared authenticated routes */}

@@ -7,7 +7,7 @@ import bcrypt
 load_dotenv()
 
 from config import get_supabase, FRONTEND_URL
-from routes import events, volunteers, dashboard, venue_map, logs
+from routes import events, volunteers, dashboard, venue_map, logs, organizer
 
 
 
@@ -43,6 +43,7 @@ app.include_router(volunteers.router)
 app.include_router(dashboard.router)
 app.include_router(venue_map.router)
 app.include_router(logs.router)
+app.include_router(organizer.router)
 
 
 @app.get("/")

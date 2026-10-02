@@ -3,191 +3,261 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { api } from "../utils/api";
-import { formatDate, getStatusColor } from "../utils/validators";
-import { LuCalendarDays, LuTicket, LuUsers, LuEye, LuArrowRight, LuPlus, LuMapPin, LuClock, LuTrendingUp } from "react-icons/lu";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-
-const PIE_COLORS = ["#4A8C2A", "#5DA63A", "#738840", "#2E6B8C", "#5E735E"];
+import { 
+  LuActivity, 
+  LuTriangleAlert, 
+  LuCircleCheck, 
+  LuClock, 
+  LuMapPin, 
+  LuRadar, 
+  LuTicket, 
+  LuUsers,
+  LuShieldAlert,
+  LuTrendingUp,
+  LuMessageSquare
+} from "react-icons/lu";
 
 export default function OrganizerDashboard() {
   const { user } = useAuth();
   const toast = useToast();
-  const [data, setData] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [healthData, setHealthData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch events list first
   useEffect(() => {
-    api.get("/api/dashboard/organizer")
-      .then(setData)
-      .catch((err) => toast(err.message, "error"))
-      .finally(() => setLoading(false));
+    api.get("/api/events/organizer/mine")
+      .then((data) => {
+        setEvents(data.events || []);
+        if (data.events && data.events.length > 0) {
+          const liveEvent = data.events.find(e => e.status === "live");
+          if (liveEvent) {
+            setSelectedEventId(liveEvent.id);
+          } else {
+            const upcomingEvent = data.events.find(e => e.status === "upcoming");
+            if (upcomingEvent) {
+              setSelectedEventId(upcomingEvent.id);
+            } else {
+              const endedEvents = data.events.filter(e => e.status === "ended");
+              setSelectedEventId(endedEvents.length > 0 ? endedEvents[endedEvents.length - 1].id : data.events[0].id);
+            }
+          }
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        toast(err.message, "error");
+        setLoading(false);
+      });
   }, []);
 
-  if (loading) {
+  // Fetch health data for selected event
+  useEffect(() => {
+    if (!selectedEventId) return;
+    setLoading(true);
+    
+    // In production, subscribe to Realtime CDC here
+    const fetchHealth = () => {
+      api.get(`/api/organizer/health/${selectedEventId}`)
+        .then(data => setHealthData(data.health))
+        .catch(err => toast(err.message, "error"))
+        .finally(() => setLoading(false));
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 15000); // Poll every 15s as fallback
+    return () => clearInterval(interval);
+  }, [selectedEventId]);
+
+  if (loading && !healthData) {
     return (
       <div className="loading-screen" style={{ minHeight: "60vh" }}>
         <div className="spinner"></div>
+        <div style={{ marginTop: "16px", color: "var(--text-muted)" }}>Initializing Command Center...</div>
       </div>
     );
   }
-
-  const stats = data?.stats || {};
-
-  const statusData = [
-    { name: "Live", value: stats.live_events || 0 },
-    { name: "Upcoming", value: stats.upcoming_events || 0 },
-    { name: "Ended", value: stats.ended_events || 0 },
-  ].filter((d) => d.value > 0);
-
-  const registrationData = (data?.user_registrations || [])
-    .map((r) => {
-      const event = data?.events?.find((e) => e.id === r.event_id);
-      return { name: event?.name?.slice(0, 15) || "Event", registrations: r.count };
-    })
-    .filter((d) => d.registrations > 0)
-    .slice(0, 6);
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1>Organizer Dashboard</h1>
+          <h1 style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: "var(--success)", boxShadow: "0 0 10px var(--success)", animation: "pulse 2s infinite" }} />
+            Executive Command
+          </h1>
           <p style={{ color: "var(--text-muted)", marginTop: "4px" }}>
-            {user?.user_id} &middot; {user?.full_name} &middot; Full event lifecycle overview
+            Live operational health, incidents, and crowd intelligence.
           </p>
         </div>
-        <Link to="/organizer/create-event" className="btn btn-primary">
-          <LuPlus size={16} />
-          Create Event
-        </Link>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon green"><LuCalendarDays /></div>
-          <div>
-            <div className="stat-value">{stats.total_events || 0}</div>
-            <div className="stat-label">Total Events</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon olive"><LuTicket /></div>
-          <div>
-            <div className="stat-value">{stats.total_tickets || 0}</div>
-            <div className="stat-label">Total Tickets</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon info"><LuUsers /></div>
-          <div>
-            <div className="stat-value">{stats.total_volunteers || 0}</div>
-            <div className="stat-label">Volunteers Assigned</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon warning"><LuEye /></div>
-          <div>
-            <div className="stat-value">{stats.total_observations || 0}</div>
-            <div className="stat-label">BLE Observations</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "32px" }}>
-        {statusData.length > 0 && (
-          <div className="chart-container">
-            <div className="chart-title">Event Status Distribution</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4}>
-                  {statusData.map((entry, idx) => (
-                    <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border-default)", borderRadius: "8px", color: "var(--text-primary)" }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginTop: "8px" }}>
-              {statusData.map((d, idx) => (
-                <div key={d.name} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
-                  {d.name} ({d.value})
-                </div>
+        <div style={{ display: "flex", gap: "12px" }}>
+          {events.length > 0 && (
+            <select 
+              className="form-select" 
+              value={selectedEventId} 
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              style={{ minWidth: "200px" }}
+            >
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.name} ({ev.status})</option>
               ))}
-            </div>
-          </div>
-        )}
-
-        {registrationData.length > 0 && (
-          <div className="chart-container">
-            <div className="chart-title">Registrations by Event</div>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={registrationData}>
-                <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border-default)", borderRadius: "8px", color: "var(--text-primary)" }}
-                />
-                <Bar dataKey="registrations" fill="#4A8C2A" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="section-header">
-          <h3 className="section-title">Your Events</h3>
-          <Link to="/organizer/events" className="btn btn-ghost btn-sm">
-            Manage All <LuArrowRight size={14} />
-          </Link>
+            </select>
+          )}
         </div>
-        {data?.events?.length > 0 ? (
-          <div className="events-grid">
-            {data.events.slice(0, 6).map((event) => (
-              <Link key={event.id} to={`/organizer/events/${event.id}`} className="event-card" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="event-card-header">
-                  <div className="event-card-title">{event.name}</div>
-                  <span className={`badge ${getStatusColor(event.status)}`}>{event.status}</span>
-                </div>
-                <div className="event-card-meta">
-                  <div className="event-card-meta-item">
-                    <LuMapPin className="meta-icon" size={14} />
-                    {event.venue || "Venue TBD"}
-                  </div>
-                  <div className="event-card-meta-item">
-                    <LuClock className="meta-icon" size={14} />
-                    {formatDate(event.event_date)}
-                  </div>
-                </div>
-                {event.zones?.length > 0 && (
-                  <div className="event-card-zones">
-                    {event.zones.slice(0, 4).map((z) => <span key={z} className="zone-tag">{z}</span>)}
-                    {event.zones.length > 4 && <span className="zone-tag">+{event.zones.length - 4}</span>}
-                  </div>
-                )}
-                <div className="event-card-footer">
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    Capacity: {event.capacity || "Unlimited"}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon"><LuCalendarDays /></div>
-            <div className="empty-state-title">No events created yet</div>
-            <div className="empty-state-text">
-              Create your first event to start managing crowd intelligence.
-            </div>
-            <Link to="/organizer/create-event" className="btn btn-primary" style={{ marginTop: "16px" }}>
-              <LuPlus size={16} /> Create Event
-            </Link>
-          </div>
-        )}
       </div>
+
+      {!healthData ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><LuActivity /></div>
+          <div className="empty-state-title">No operational data</div>
+          <div className="empty-state-text">
+            Start your event to begin tracking operational health.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          
+          {/* TOP KPI ROW */}
+          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+            <div className="stat-card" style={{ borderLeft: "4px solid var(--error)" }}>
+              <div className="stat-icon" style={{ color: "var(--error)" }}><LuShieldAlert /></div>
+              <div>
+                <div className="stat-value" style={{ color: "var(--error)" }}>{healthData.incidents?.active || 0}</div>
+                <div className="stat-label">Active Incidents</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                  {healthData.incidents?.urgent || 0} urgent &middot; {healthData.incidents?.resolved || 0} resolved
+                </div>
+              </div>
+            </div>
+            
+            <div className="stat-card" style={{ borderLeft: "4px solid var(--info)" }}>
+              <div className="stat-icon info"><LuUsers /></div>
+              <div>
+                <div className="stat-value">{healthData.shifts?.active || 0}</div>
+                <div className="stat-label">Active Staff</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                  {healthData.shifts?.on_break || 0} on break &middot; {healthData.coverage?.pending || 0} requests
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ borderLeft: "4px solid var(--warning)" }}>
+              <div className="stat-icon warning"><LuRadar /></div>
+              <div>
+                <div className="stat-value">{healthData.zones?.reduce((sum, z) => sum + (z.active_count || 0), 0) || 0}</div>
+                <div className="stat-label">Detected Devices</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                  Across {healthData.zones?.filter(z => z.is_monitored)?.length || 0} active zones
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ borderLeft: "4px solid var(--success)" }}>
+              <div className="stat-icon success"><LuCircleCheck /></div>
+              <div>
+                <div className="stat-value">{healthData.tasks?.completed || 0}</div>
+                <div className="stat-label">Tasks Completed</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                  {healthData.tasks?.pending || 0} pending &middot; {healthData.tasks?.in_progress || 0} active
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
+            
+            {/* ZONE STATUS BOARD */}
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 className="card-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <LuMapPin /> Venue Zone Status
+                </h3>
+                <Link to="/organizer/crowd" className="btn btn-ghost btn-sm">Full Map</Link>
+              </div>
+              <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {healthData.zones?.length === 0 ? (
+                  <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px" }}>No zones configured</div>
+                ) : (
+                  healthData.zones?.slice(0, 5).map((zone, idx) => {
+                    const capacity = zone.operating_capacity || 0;
+                    const ratio = capacity > 0 ? (zone.active_count || 0) / capacity : 0;
+                    const isHigh = ratio > 0.85;
+                    
+                    return (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px", backgroundColor: "var(--bg-secondary)", borderRadius: "8px", borderLeft: isHigh ? "3px solid var(--error)" : "3px solid var(--success)" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>{zone.zone_name}</div>
+                          <div style={{ display: "flex", gap: "16px", fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <LuUsers size={12} /> {zone.active_staff || 0} Staff
+                            </span>
+                            {zone.active_incidents > 0 && (
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--error)" }}>
+                                <LuTriangleAlert size={12} /> {zone.active_incidents} Incidents
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: "1.2rem", fontWeight: "700", color: isHigh ? "var(--error)" : "var(--text-primary)" }}>
+                            {zone.active_count || 0}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                            {capacity > 0 ? `${Math.round(ratio * 100)}% cap` : "devices"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* QUICK ACTIONS & COMMS */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Quick Dispatch</h3>
+                </div>
+                <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <Link to="/organizer/incidents" className="btn btn-outline" style={{ justifyContent: "center", borderColor: "var(--error)", color: "var(--error)" }}>
+                    <LuShieldAlert size={16} /> Report Emergency
+                  </Link>
+                  <Link to="/organizer/comms" className="btn btn-outline" style={{ justifyContent: "center", borderColor: "var(--info)", color: "var(--info)" }}>
+                    <LuMessageSquare size={16} /> Broadcast Message
+                  </Link>
+                  <Link to="/organizer/tasks" className="btn btn-outline" style={{ justifyContent: "center" }}>
+                    <LuCircleCheck size={16} /> Assign Task
+                  </Link>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Communications</h3>
+                </div>
+                <div style={{ padding: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Total Sent</span>
+                    <span style={{ fontWeight: "600" }}>{healthData.communications?.total_messages || 0}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Broadcasts</span>
+                    <span style={{ fontWeight: "600" }}>{healthData.communications?.broadcasts || 0}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Urgent</span>
+                    <span style={{ fontWeight: "600", color: "var(--error)" }}>{healthData.communications?.urgent || 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
     </div>
   );
 }

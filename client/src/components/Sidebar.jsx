@@ -11,6 +11,8 @@ import {
   LuRadar,
   LuMail,
   LuArrowLeftRight,
+  LuMapPin,
+  LuTrendingUp,
 } from "react-icons/lu";
 
 const navConfig = {
@@ -36,13 +38,26 @@ const navConfig = {
     ]},
   ],
   organizer: [
-    { label: "Main", items: [
-      { path: "/organizer/dashboard", icon: LuLayoutDashboard, text: "Dashboard" },
-      { path: "/organizer/events", icon: LuCalendarDays, text: "Events" },
-      { path: "/organizer/create-event", icon: LuCalendarPlus, text: "Create Event" },
-      { path: "/organizer/invite", icon: LuUsers, text: "Invite Volunteers" },
+    { label: "Core Command", items: [
+      { path: "/organizer/dashboard", icon: LuLayoutDashboard, text: "Executive Command" },
+      { path: "/organizer/events", icon: LuCalendarDays, text: "Event Lifecycle" },
     ]},
-    { label: "Account", items: [
+    { label: "Operations", items: [
+      { path: "/organizer/incidents", icon: LuRadar, text: "Incident Command" },
+      { path: "/organizer/assistance", icon: LuUsers, text: "Assistance Desk" },
+      { path: "/organizer/volunteers", icon: LuUsers, text: "Staff & Shifts" },
+      { path: "/organizer/tasks", icon: LuTicket, text: "Task Delegator" },
+      { path: "/organizer/comms", icon: LuMail, text: "Comms Console" },
+    ]},
+    { label: "Spatial & Intel", items: [
+      { path: "/organizer/crowd", icon: LuRadar, text: "Live Crowd Feed" },
+      { path: "/organizer/map", icon: LuMapPin, text: "Vector Map Hub" },
+      { path: "/organizer/zones", icon: LuLayoutDashboard, text: "Zone Capacity Editor" },
+      { path: "/organizer/content", icon: LuCalendarPlus, text: "Agenda & Content" },
+      { path: "/organizer/analytics", icon: LuTrendingUp, text: "Reporting & Intel" },
+    ]},
+    { label: "Settings", items: [
+      { path: "/organizer/invite", icon: LuUsers, text: "Team Invites" },
       { path: "/profile", icon: LuUser, text: "Profile" },
     ]},
   ],
